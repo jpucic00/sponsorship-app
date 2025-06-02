@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Child {
+  id                    Int      @id @default(autoincrement())
+  firstName             String
+  lastName              String
+  dateOfBirth           DateTime
+  gender                String   // Male/Female
+  schoolId              Int
+  class                 String   // P1-P7, S1-S6
+  
+  // Father information
+  fatherFullName        String
+  fatherAddress         String?
+  fatherContact         String?  // Freetext: phone, email, address etc
+  
+  // Mother information
+  motherFullName        String
+  motherAddress         String?
+  motherContact         String?  // Freetext: phone, email, address etc
+  
+  // Child details
+  story                 String?  // Story about the child
+  comment               String?  // Volunteer comments
+  photoUrl              String?
+  
+  // Tracking dates
+  dateEnteredRegister   DateTime @default(now())
+  lastProfileUpdate     DateTime @default(now())
+  
+  // System fields
+  isSponsored           Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relations
+  school                School   @relation(fields: [schoolId], references: [id])
+  sponsorship           Sponsorship?
+  
+  @@map("children")
+}
+
+model School {
+  id       Int      @id @default(autoincrement())
+  name     String   @unique
+  location String?
+  isActive Boolean  @default(true)
+  
+  children Child[]
+  
+  @@map("schools")
+}
+
+model Sponsor {
+  id                Int      @id @default(autoincrement())
+  fullName          String
+  contact           String   // Freetext: phone, email, address etc
+  proxyId           Int?     // Optional middleman/proxy
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  proxy             Proxy?   @relation(fields: [proxyId], references: [id])
+  sponsorships      Sponsorship[]
+  
+  @@map("sponsors")
+}
+
+model Proxy {
+  id          Int      @id @default(autoincrement())
+  fullName    String   @unique
+  contact     String   // Contact information
+  role        String?  // e.g., "Priest", "Community Leader", etc.
+  description String?  // Additional info about the proxy
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  sponsors    Sponsor[]
+  
+  @@map("proxies")
+}
+
+model Sponsorship {
+  id              Int      @id @default(autoincrement())
+  childId         Int      @unique
+  sponsorId       Int
+  startDate       DateTime @default(now())
+  monthlyAmount   Float?
+  paymentMethod   String?
+  isActive        Boolean  @default(true)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  child   Child   @relation(fields: [childId], references: [id])
+  sponsor Sponsor @relation(fields: [sponsorId], references: [id])
+  
+  @@map("sponsorships")
+}
+
+model Volunteer {
+  id        Int      @id @default(autoincrement())
+  firstName String
+  lastName  String
+  email     String   @unique
+  phone     String?
+  role      String   @default("volunteer")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("volunteers")
+}
