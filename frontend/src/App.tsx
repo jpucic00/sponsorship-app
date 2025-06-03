@@ -179,12 +179,16 @@ function App() {
 
       if (response.ok) {
         showNotification("Child registered successfully! 🎉");
+        // The form will reset itself after this resolves
+        return Promise.resolve();
       } else {
         throw new Error("Failed to register child");
       }
     } catch (error) {
       showNotification("Error registering child. Please try again.");
       console.error("Error:", error);
+      // Re-throw the error so the form doesn't reset
+      throw error;
     }
   };
 

@@ -68,6 +68,11 @@ export const ChildForm: React.FC<ChildFormProps> = ({
   const [showNewSponsorForm, setShowNewSponsorForm] = useState(false);
   const [selectedSponsor, setSelectedSponsor] = useState<Sponsor | null>(null);
 
+  // New proxy creation states
+  const [showNewProxyForm, setShowNewProxyForm] = useState(false);
+  const [selectedProxy, setSelectedProxy] = useState<Proxy | null>(null);
+  const [proxySearchTerm, setProxySearchTerm] = useState("");
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -94,6 +99,14 @@ export const ChildForm: React.FC<ChildFormProps> = ({
     proxyId: "",
   });
 
+  // New proxy data state
+  const [newProxyData, setNewProxyData] = useState({
+    fullName: "",
+    contact: "",
+    role: "",
+    description: "",
+  });
+
   const steps = [
     { number: 1, title: "Basic Info", icon: User },
     { number: 2, title: "Family", icon: Users },
@@ -102,51 +115,28 @@ export const ChildForm: React.FC<ChildFormProps> = ({
   ];
 
   useEffect(() => {
-    // Mock data for demonstration
-    const mockSchools = [
-      { id: 1, name: "Kampala Primary School", location: "Kampala" },
-      { id: 2, name: "Entebbe Community School", location: "Entebbe" },
-      { id: 3, name: "Jinja Secondary School", location: "Jinja" },
-    ];
-
-    const mockSponsors = [
-      {
-        id: 1,
-        fullName: "John Smith",
-        contact: "john.smith@email.com, +256701234567",
-      },
-      {
-        id: 2,
-        fullName: "Mary Johnson",
-        contact: "mary.johnson@email.com, +256702345678",
-        proxy: { fullName: "Father Michael", role: "Priest" },
-      },
-      {
-        id: 3,
-        fullName: "David Wilson",
-        contact: "david.wilson@email.com, +256703456789",
-      },
-    ];
-
-    const mockProxies = [
-      {
-        id: 1,
-        fullName: "Father Michael Ochieng",
-        role: "Priest",
-        contact: "+256701234567",
-      },
-      {
-        id: 2,
-        fullName: "Sister Agnes Namalwa",
-        role: "Nun",
-        contact: "+256702345678",
-      },
-    ];
-
-    setSchools(mockSchools);
-    setSponsors(mockSponsors);
-    setProxies(mockProxies);
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+      const [schoolsRes, sponsorsRes, proxiesRes] = await Promise.all([
+        fetch("/api/schools"),
+        fetch("/api/sponsors"),
+        fetch("/api/proxies"),
+      ]);
+
+      const schoolsData = await schoolsRes.json();
+      const sponsorsData = await sponsorsRes.json();
+      const proxiesData = await proxiesRes.json();
+
+      setSchools(schoolsData);
+      setSponsors(sponsorsData);
+      setProxies(proxiesData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -170,12 +160,30 @@ export const ChildForm: React.FC<ChildFormProps> = ({
     });
   };
 
+  const handleNewProxyChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
+    setNewProxyData({
+      ...newProxyData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
   const filteredSponsors = sponsors.filter(
     (sponsor) =>
       sponsor.fullName
         .toLowerCase()
         .includes(sponsorSearchTerm.toLowerCase()) ||
       sponsor.contact.toLowerCase().includes(sponsorSearchTerm.toLowerCase())
+  );
+
+  const filteredProxies = proxies.filter(
+    (proxy) =>
+      proxy.fullName.toLowerCase().includes(proxySearchTerm.toLowerCase()) ||
+      proxy.role.toLowerCase().includes(proxySearchTerm.toLowerCase()) ||
+      proxy.contact.toLowerCase().includes(proxySearchTerm.toLowerCase())
   );
 
   const handleSponsorSelect = (sponsor: Sponsor) => {
@@ -190,10 +198,99 @@ export const ChildForm: React.FC<ChildFormProps> = ({
     setFormData({ ...formData, sponsorId: "" });
   };
 
+  const handleProxySelect = (proxy: Proxy) => {
+    setSelectedProxy(proxy);
+    setNewSponsorData({ ...newSponsorData, proxyId: proxy.id.toString() });
+    setShowNewProxyForm(false);
+  };
+
+  const handleCreateNewProxy = () => {
+    setShowNewProxyForm(true);
+    setSelectedProxy(null);
+    setNewSponsorData({ ...newSponsorData, proxyId: "" });
+  };
+
+  const resetForm = () => {
+    // Reset all form data to initial state
+    setFormData({
+      firstName: "",
+      lastName: "",
+      dateOfBirth: "",
+      gender: "",
+      schoolId: "",
+      class: "",
+      fatherFullName: "",
+      fatherAddress: "",
+      fatherContact: "",
+      motherFullName: "",
+      motherAddress: "",
+      motherContact: "",
+      story: "",
+      comment: "",
+      photoUrl: "",
+      sponsorId: "",
+    });
+
+    // Reset sponsor-related states
+    setNewSponsorData({
+      fullName: "",
+      contact: "",
+      proxyId: "",
+    });
+
+    // Reset proxy-related states
+    setNewProxyData({
+      fullName: "",
+      contact: "",
+      role: "",
+      description: "",
+    });
+
+    // Reset UI states
+    setCurrentStep(1);
+    setSponsorSearchTerm("");
+    setProxySearchTerm("");
+    setShowNewSponsorForm(false);
+    setShowNewProxyForm(false);
+    setSelectedSponsor(null);
+    setSelectedProxy(null);
+  };
+
   const handleSubmit = async () => {
     let finalData = { ...formData };
 
     if (showNewSponsorForm && newSponsorData.fullName) {
+      // Create new proxy first if needed
+      if (
+        showNewProxyForm &&
+        newProxyData.fullName &&
+        newProxyData.contact &&
+        newProxyData.role
+      ) {
+        try {
+          const proxyResponse = await fetch("/api/proxies", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(newProxyData),
+          });
+
+          if (proxyResponse.ok) {
+            const newProxy = await proxyResponse.json();
+            setProxies((prev) => [...prev, newProxy]);
+            newSponsorData.proxyId = newProxy.id.toString();
+          } else {
+            throw new Error("Failed to create proxy");
+          }
+        } catch (error) {
+          console.error("Error creating proxy:", error);
+          alert("Failed to create proxy. Please try again.");
+          return;
+        }
+      }
+
+      // Create new sponsor
       const newSponsor = {
         id: Date.now(),
         ...newSponsorData,
@@ -202,7 +299,16 @@ export const ChildForm: React.FC<ChildFormProps> = ({
       finalData.newSponsor = newSponsor;
     }
 
-    onSubmit(finalData);
+    try {
+      await onSubmit(finalData);
+      // Reset form to first step after successful submission
+      resetForm();
+      // Refresh data lists
+      fetchData();
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      // Don't reset form if there was an error
+    }
   };
 
   const nextStep = () => {
@@ -227,12 +333,20 @@ export const ChildForm: React.FC<ChildFormProps> = ({
       case 2:
         return formData.fatherFullName && formData.motherFullName;
       case 3:
-        return (
-          selectedSponsor ||
-          (showNewSponsorForm &&
-            newSponsorData.fullName &&
-            newSponsorData.contact)
-        );
+        if (selectedSponsor) return true;
+        if (
+          showNewSponsorForm &&
+          newSponsorData.fullName &&
+          newSponsorData.contact
+        ) {
+          if (showNewProxyForm) {
+            return (
+              newProxyData.fullName && newProxyData.contact && newProxyData.role
+            );
+          }
+          return true;
+        }
+        return false;
       case 4:
         return true;
       default:
@@ -689,27 +803,285 @@ export const ChildForm: React.FC<ChildFormProps> = ({
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="block text-sm font-semibold text-gray-700">
-                        Middleman/Proxy (Optional)
-                      </label>
-                      <select
-                        name="proxyId"
-                        value={newSponsorData.proxyId}
-                        onChange={handleNewSponsorChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white/70"
-                      >
-                        <option value="">No middleman - Direct contact</option>
-                        {proxies.map((proxy) => (
-                          <option key={proxy.id} value={proxy.id}>
-                            {proxy.fullName} ({proxy.role})
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-sm text-gray-600 mt-2 bg-white/50 p-2 rounded-lg">
-                        💡 Select a priest, community leader, or other
-                        intermediary if the sponsor works through someone
-                      </p>
+                    {/* Proxy/Middleman Selection for New Sponsor */}
+                    <div className="bg-purple-50 p-6 rounded-xl border border-purple-100">
+                      <div className="space-y-6">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-4">
+                            Middleman/Proxy (Optional)
+                          </label>
+
+                          {/* Proxy Options */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowNewProxyForm(false);
+                                setSelectedProxy(null);
+                                setNewSponsorData({
+                                  ...newSponsorData,
+                                  proxyId: "",
+                                });
+                              }}
+                              className={`p-4 border-2 rounded-xl transition-all duration-300 ${
+                                !showNewProxyForm && !selectedProxy
+                                  ? "border-blue-500 bg-blue-50 shadow-md"
+                                  : "border-gray-300 hover:border-gray-400 bg-white"
+                              }`}
+                            >
+                              <div className="text-center">
+                                <div className="text-sm font-semibold text-gray-900">
+                                  No Proxy
+                                </div>
+                                <div className="text-xs text-gray-600 mt-1">
+                                  Direct contact
+                                </div>
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowNewProxyForm(false);
+                                setSelectedProxy(null);
+                              }}
+                              className={`p-4 border-2 rounded-xl transition-all duration-300 ${
+                                !showNewProxyForm && selectedProxy
+                                  ? "border-purple-500 bg-purple-50 shadow-md"
+                                  : "border-gray-300 hover:border-gray-400 bg-white"
+                              }`}
+                            >
+                              <Search
+                                className="mx-auto mb-2 text-purple-600"
+                                size={20}
+                              />
+                              <div className="text-center">
+                                <div className="text-sm font-semibold text-gray-900">
+                                  Select Existing
+                                </div>
+                                <div className="text-xs text-gray-600 mt-1">
+                                  Choose from list
+                                </div>
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleCreateNewProxy}
+                              className={`p-4 border-2 rounded-xl transition-all duration-300 ${
+                                showNewProxyForm
+                                  ? "border-green-500 bg-green-50 shadow-md"
+                                  : "border-gray-300 hover:border-gray-400 bg-white"
+                              }`}
+                            >
+                              <Plus
+                                className="mx-auto mb-2 text-green-600"
+                                size={20}
+                              />
+                              <div className="text-center">
+                                <div className="text-sm font-semibold text-gray-900">
+                                  Create New
+                                </div>
+                                <div className="text-xs text-gray-600 mt-1">
+                                  Add new proxy
+                                </div>
+                              </div>
+                            </button>
+                          </div>
+
+                          {/* Existing Proxy Search and Selection */}
+                          {!showNewProxyForm &&
+                            !selectedProxy &&
+                            newSponsorData.proxyId === "" && (
+                              <div className="space-y-4">
+                                <div className="relative">
+                                  <Search
+                                    className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+                                    size={20}
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="Search proxies by name, role, or contact..."
+                                    value={proxySearchTerm}
+                                    onChange={(e) =>
+                                      setProxySearchTerm(e.target.value)
+                                    }
+                                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/70"
+                                  />
+                                </div>
+
+                                <div className="max-h-60 overflow-y-auto space-y-2">
+                                  {filteredProxies.length > 0 ? (
+                                    filteredProxies.map((proxy) => (
+                                      <div
+                                        key={proxy.id}
+                                        onClick={() => handleProxySelect(proxy)}
+                                        className="p-4 border border-gray-200 rounded-xl cursor-pointer transition-all duration-200 hover:border-purple-300 hover:bg-purple-50 bg-white"
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <h4 className="font-bold text-gray-900">
+                                              {proxy.fullName}
+                                            </h4>
+                                            <p className="text-sm text-purple-600 font-medium">
+                                              {proxy.role}
+                                            </p>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                              {proxy.contact}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="text-center py-8 text-gray-500">
+                                      <Users
+                                        size={48}
+                                        className="mx-auto mb-3 opacity-50"
+                                      />
+                                      <p>No proxies found</p>
+                                      <p className="text-sm">
+                                        Try adjusting your search or create a
+                                        new proxy.
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                          {/* Selected Proxy Display */}
+                          {selectedProxy && (
+                            <div className="bg-purple-100 p-4 rounded-xl border border-purple-200">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <h4 className="font-bold text-purple-900">
+                                    Selected: {selectedProxy.fullName}
+                                  </h4>
+                                  <p className="text-sm text-purple-700">
+                                    {selectedProxy.role}
+                                  </p>
+                                  <p className="text-sm text-purple-600 mt-1">
+                                    {selectedProxy.contact}
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedProxy(null);
+                                    setNewSponsorData({
+                                      ...newSponsorData,
+                                      proxyId: "",
+                                    });
+                                  }}
+                                  className="text-purple-600 hover:text-purple-800"
+                                >
+                                  <Check size={24} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* New Proxy Form */}
+                          {showNewProxyForm && (
+                            <div className="bg-green-50 p-6 rounded-xl border border-green-200">
+                              <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                                <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                                New Proxy Information
+                              </h4>
+
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-gray-700">
+                                      Full Name *
+                                    </label>
+                                    <input
+                                      type="text"
+                                      name="fullName"
+                                      value={newProxyData.fullName}
+                                      onChange={handleNewProxyChange}
+                                      required={showNewProxyForm}
+                                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white/70"
+                                      placeholder="Enter proxy full name"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-gray-700">
+                                      Role *
+                                    </label>
+                                    <select
+                                      name="role"
+                                      value={newProxyData.role}
+                                      onChange={handleNewProxyChange}
+                                      required={showNewProxyForm}
+                                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white/70"
+                                    >
+                                      <option value="">Select Role</option>
+                                      <option value="Priest">Priest</option>
+                                      <option value="Pastor">Pastor</option>
+                                      <option value="Nun">Nun/Sister</option>
+                                      <option value="Community Leader">
+                                        Community Leader
+                                      </option>
+                                      <option value="Teacher">Teacher</option>
+                                      <option value="Social Worker">
+                                        Social Worker
+                                      </option>
+                                      <option value="Village Elder">
+                                        Village Elder
+                                      </option>
+                                      <option value="Other">Other</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <label className="block text-sm font-semibold text-gray-700">
+                                    Contact Information *
+                                  </label>
+                                  <textarea
+                                    name="contact"
+                                    value={newProxyData.contact}
+                                    onChange={handleNewProxyChange}
+                                    required={showNewProxyForm}
+                                    rows={3}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white/70 resize-none"
+                                    placeholder="Phone number, email, address, or any other contact information"
+                                  />
+                                </div>
+
+                                <div className="space-y-2">
+                                  <label className="block text-sm font-semibold text-gray-700">
+                                    Description (Optional)
+                                  </label>
+                                  <textarea
+                                    name="description"
+                                    value={newProxyData.description}
+                                    onChange={handleNewProxyChange}
+                                    rows={2}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white/70 resize-none"
+                                    placeholder="Additional information about the proxy (optional)"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="bg-white/60 p-4 rounded-xl border border-purple-200">
+                          <p className="text-sm text-purple-700 font-medium mb-2">
+                            🤝 About Proxies/Middlemen
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Select a priest, community leader, or other trusted
+                            intermediary if the sponsor prefers to work through
+                            someone. This helps with local coordination and
+                            communication.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -864,6 +1236,19 @@ export const ChildForm: React.FC<ChildFormProps> = ({
                     {selectedSponsor.proxy.role})
                   </div>
                 )}
+                {showNewSponsorForm && selectedProxy && (
+                  <div className="text-sm text-gray-600 mt-1">
+                    Via: {selectedProxy.fullName} ({selectedProxy.role})
+                  </div>
+                )}
+                {showNewSponsorForm &&
+                  showNewProxyForm &&
+                  newProxyData.fullName && (
+                    <div className="text-sm text-gray-600 mt-1">
+                      Via: {newProxyData.fullName} ({newProxyData.role}) - New
+                      Proxy
+                    </div>
+                  )}
               </div>
             </div>
           </div>
