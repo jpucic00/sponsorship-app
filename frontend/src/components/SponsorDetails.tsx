@@ -110,7 +110,7 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
       phone: "",
       email: "",
       address: "",
-      other: [],
+      other: [] as string[],
     };
 
     lines.forEach((line) => {
