@@ -24,7 +24,7 @@ interface FormSummaryCardProps {
     fatherFullName: string;
     motherFullName: string;
   };
-  selectedSponsor: Sponsor | null;
+  selectedSponsors: Sponsor[];
   showNewSponsorForm: boolean;
   newSponsorData: {
     fullName: string;
@@ -39,7 +39,7 @@ interface FormSummaryCardProps {
 
 export const FormSummaryCard: React.FC<FormSummaryCardProps> = ({
   formData,
-  selectedSponsor,
+  selectedSponsors,
   showNewSponsorForm,
   newSponsorData,
   selectedProxy,
@@ -56,7 +56,6 @@ export const FormSummaryCard: React.FC<FormSummaryCardProps> = ({
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         <div className="bg-blue-50 p-3 rounded-lg">
-          <span className="font-semibold text-blue-700">Child:</span>
           <div className="text-gray-900 font-medium">
             {formData.firstName} {formData.lastName}
           </div>
@@ -78,28 +77,40 @@ export const FormSummaryCard: React.FC<FormSummaryCardProps> = ({
           </div>
         </div>
         <div className="md:col-span-2 bg-gradient-to-r from-red-50 to-orange-50 p-3 rounded-lg">
-          <span className="font-semibold text-red-700">Sponsor:</span>
+          <span className="font-semibold text-red-700">Sponsors:</span>
           <div className="text-gray-900 font-medium">
-            {selectedSponsor?.fullName ||
-              (showNewSponsorForm && newSponsorData.fullName) ||
-              "No sponsor assigned"}
+            {selectedSponsors.length > 0 ? (
+              <div className="space-y-1">
+                {selectedSponsors.map((sponsor, index) => (
+                  <div key={sponsor.id}>
+                    {sponsor.fullName}
+                    {sponsor.proxy && (
+                      <div className="text-sm text-gray-600">
+                        Via: {sponsor.proxy.fullName} ({sponsor.proxy.role})
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : showNewSponsorForm && newSponsorData.fullName ? (
+              <div>
+                {newSponsorData.fullName} (New Sponsor)
+                {showNewProxyForm && newProxyData.fullName && (
+                  <div className="text-sm text-gray-600 mt-1">
+                    Via: {newProxyData.fullName} ({newProxyData.role}) - New
+                    Proxy
+                  </div>
+                )}
+                {selectedProxy && (
+                  <div className="text-sm text-gray-600 mt-1">
+                    Via: {selectedProxy.fullName} ({selectedProxy.role})
+                  </div>
+                )}
+              </div>
+            ) : (
+              "No sponsors assigned"
+            )}
           </div>
-          {selectedSponsor?.proxy && (
-            <div className="text-sm text-gray-600 mt-1">
-              Via: {selectedSponsor.proxy.fullName} (
-              {selectedSponsor.proxy.role})
-            </div>
-          )}
-          {showNewSponsorForm && selectedProxy && (
-            <div className="text-sm text-gray-600 mt-1">
-              Via: {selectedProxy.fullName} ({selectedProxy.role})
-            </div>
-          )}
-          {showNewSponsorForm && showNewProxyForm && newProxyData.fullName && (
-            <div className="text-sm text-gray-600 mt-1">
-              Via: {newProxyData.fullName} ({newProxyData.role}) - New Proxy
-            </div>
-          )}
         </div>
       </div>
     </div>

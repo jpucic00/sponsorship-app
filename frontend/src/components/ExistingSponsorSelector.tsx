@@ -15,7 +15,7 @@ interface ExistingSponsorSelectorProps {
   sponsors: Sponsor[];
   sponsorSearchTerm: string;
   setSponsorSearchTerm: (term: string) => void;
-  selectedSponsor: Sponsor | null;
+  selectedSponsors: Sponsor[];
   onSponsorSelect: (sponsor: Sponsor) => void;
 }
 
@@ -25,7 +25,7 @@ export const ExistingSponsorSelector: React.FC<
   sponsors,
   sponsorSearchTerm,
   setSponsorSearchTerm,
-  selectedSponsor,
+  selectedSponsors,
   onSponsorSelect,
 }) => {
   const filteredSponsors = sponsors.filter(
@@ -52,36 +52,55 @@ export const ExistingSponsorSelector: React.FC<
         />
       </div>
 
+      {filteredSponsors.length > 0 && (
+        <div className="bg-gray-50 p-4 rounded-xl">
+          <p className="text-sm text-gray-600 mb-2">
+            💡 <strong>Tip:</strong> Click on sponsors to select/deselect them.
+            You can choose multiple sponsors for this child.
+          </p>
+        </div>
+      )}
+
       <div className="max-h-80 overflow-y-auto space-y-3">
         {filteredSponsors.length > 0 ? (
-          filteredSponsors.map((sponsor) => (
-            <div
-              key={sponsor.id}
-              onClick={() => onSponsorSelect(sponsor)}
-              className={`p-6 border-2 rounded-xl cursor-pointer transition-all duration-200 transform hover:scale-[1.02] ${
-                selectedSponsor?.id === sponsor.id
-                  ? "border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 shadow-lg"
-                  : "border-gray-200 hover:border-gray-300 bg-white hover:shadow-md"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-bold text-gray-900 text-lg">
-                    {sponsor.fullName}
-                  </h4>
-                  <p className="text-gray-600 mt-1">{sponsor.contact}</p>
-                  {sponsor.proxy && (
-                    <p className="text-sm text-purple-600 mt-2 bg-purple-50 px-2 py-1 rounded-full inline-block">
-                      Via: {sponsor.proxy.fullName} ({sponsor.proxy.role})
-                    </p>
+          filteredSponsors.map((sponsor) => {
+            const isSelected = selectedSponsors.some(
+              (s) => s.id === sponsor.id
+            );
+            return (
+              <div
+                key={sponsor.id}
+                onClick={() => onSponsorSelect(sponsor)}
+                className={`p-6 border-2 rounded-xl cursor-pointer transition-all duration-200 transform hover:scale-[1.02] ${
+                  isSelected
+                    ? "border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 shadow-lg"
+                    : "border-gray-200 hover:border-gray-300 bg-white hover:shadow-md"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-gray-900 text-lg">
+                      {sponsor.fullName}
+                    </h4>
+                    <p className="text-gray-600 mt-1">{sponsor.contact}</p>
+                    {sponsor.proxy && (
+                      <p className="text-sm text-purple-600 mt-2 bg-purple-50 px-2 py-1 rounded-full inline-block">
+                        Via: {sponsor.proxy.fullName} ({sponsor.proxy.role})
+                      </p>
+                    )}
+                  </div>
+                  {isSelected && (
+                    <div className="flex items-center space-x-2">
+                      <Check className="text-blue-600" size={24} />
+                      <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium">
+                        Selected
+                      </span>
+                    </div>
                   )}
                 </div>
-                {selectedSponsor?.id === sponsor.id && (
-                  <Check className="text-blue-600" size={24} />
-                )}
               </div>
-            </div>
-          ))
+            );
+          })
         ) : (
           <div className="text-center py-12 text-gray-500">
             <Users size={64} className="mx-auto mb-4 opacity-50" />

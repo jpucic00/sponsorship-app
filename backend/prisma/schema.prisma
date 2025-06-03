@@ -42,7 +42,7 @@ model Child {
   
   // Relations
   school                School   @relation(fields: [schoolId], references: [id])
-  sponsorship           Sponsorship?
+  sponsorships          Sponsorship[]  // Changed from sponsorship to sponsorships (many)
   
   @@map("children")
 }
@@ -92,9 +92,10 @@ model Proxy {
 
 model Sponsorship {
   id              Int      @id @default(autoincrement())
-  childId         Int      @unique
+  childId         Int      // Removed @unique to allow multiple sponsorships per child
   sponsorId       Int
   startDate       DateTime @default(now())
+  endDate         DateTime? // Added to track when sponsorship ends
   monthlyAmount   Float?
   paymentMethod   String?
   isActive        Boolean  @default(true)
@@ -105,6 +106,8 @@ model Sponsorship {
   child   Child   @relation(fields: [childId], references: [id])
   sponsor Sponsor @relation(fields: [sponsorId], references: [id])
   
+  // Ensure a sponsor can't sponsor the same child twice at the same time
+  @@unique([childId, sponsorId, isActive])
   @@map("sponsorships")
 }
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { Heart, Search, Plus, Users, Check } from "lucide-react";
+import { Heart, Search, Plus, Check, X } from "lucide-react";
 import { ExistingSponsorSelector } from "./ExistingSponsorSelector";
 import { NewSponsorForm } from "./NewSponsorForm";
 
@@ -27,8 +27,8 @@ interface SponsorSelectionStepProps {
   setSponsorSearchTerm: (term: string) => void;
   showNewSponsorForm: boolean;
   setShowNewSponsorForm: (show: boolean) => void;
-  selectedSponsor: Sponsor | null;
-  setSelectedSponsor: (sponsor: Sponsor | null) => void;
+  selectedSponsors: Sponsor[];
+  setSelectedSponsors: (sponsors: Sponsor[]) => void;
   newSponsorData: {
     fullName: string;
     contact: string;
@@ -67,8 +67,8 @@ export const SponsorSelectionStep: React.FC<SponsorSelectionStepProps> = ({
   setSponsorSearchTerm,
   showNewSponsorForm,
   setShowNewSponsorForm,
-  selectedSponsor,
-  setSelectedSponsor,
+  selectedSponsors,
+  setSelectedSponsors,
   newSponsorData,
   handleNewSponsorChange,
   showNewProxyForm,
@@ -86,7 +86,14 @@ export const SponsorSelectionStep: React.FC<SponsorSelectionStepProps> = ({
     <div className="space-y-8">
       <div className="flex items-center space-x-3 mb-6">
         <Heart className="text-red-500" size={28} />
-        <h2 className="text-3xl font-bold text-gray-900">Sponsor Assignment</h2>
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">
+            Sponsor Assignment
+          </h2>
+          <p className="text-gray-600 text-sm mt-1">
+            You can select multiple sponsors for this child
+          </p>
+        </div>
       </div>
 
       {/* Sponsor Options */}
@@ -95,7 +102,7 @@ export const SponsorSelectionStep: React.FC<SponsorSelectionStepProps> = ({
           type="button"
           onClick={() => {
             setShowNewSponsorForm(false);
-            setSelectedSponsor(null);
+            setSelectedSponsors([]);
           }}
           className={`p-8 border-2 rounded-2xl transition-all duration-300 transform hover:scale-105 ${
             !showNewSponsorForm
@@ -105,11 +112,18 @@ export const SponsorSelectionStep: React.FC<SponsorSelectionStepProps> = ({
         >
           <Search className="mx-auto mb-4 text-blue-600" size={40} />
           <h3 className="font-bold text-gray-900 mb-2 text-lg">
-            Find Existing Sponsor
+            Find Existing Sponsors
           </h3>
           <p className="text-sm text-gray-600">
             Search and select from registered sponsors
           </p>
+          {selectedSponsors.length > 0 && !showNewSponsorForm && (
+            <div className="mt-3">
+              <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">
+                {selectedSponsors.length} selected
+              </span>
+            </div>
+          )}
         </button>
 
         <button
@@ -133,13 +147,49 @@ export const SponsorSelectionStep: React.FC<SponsorSelectionStepProps> = ({
 
       {/* Existing Sponsor Search */}
       {!showNewSponsorForm && (
-        <ExistingSponsorSelector
-          sponsors={sponsors}
-          sponsorSearchTerm={sponsorSearchTerm}
-          setSponsorSearchTerm={setSponsorSearchTerm}
-          selectedSponsor={selectedSponsor}
-          onSponsorSelect={onSponsorSelect}
-        />
+        <div className="space-y-6">
+          {selectedSponsors.length > 0 && (
+            <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+              <h4 className="font-semibold text-blue-900 mb-2">
+                Selected Sponsors ({selectedSponsors.length}):
+              </h4>
+              <div className="space-y-2">
+                {selectedSponsors.map((sponsor) => (
+                  <div
+                    key={sponsor.id}
+                    className="flex items-center justify-between bg-white p-3 rounded-lg"
+                  >
+                    <div>
+                      <span className="font-medium text-gray-900">
+                        {sponsor.fullName}
+                      </span>
+                      {sponsor.proxy && (
+                        <div className="text-sm text-purple-600">
+                          Via: {sponsor.proxy.fullName} ({sponsor.proxy.role})
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => onSponsorSelect(sponsor)}
+                      className="text-red-600 hover:text-red-800 p-1"
+                      title="Remove sponsor"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <ExistingSponsorSelector
+            sponsors={sponsors}
+            sponsorSearchTerm={sponsorSearchTerm}
+            setSponsorSearchTerm={setSponsorSearchTerm}
+            selectedSponsors={selectedSponsors}
+            onSponsorSelect={onSponsorSelect}
+          />
+        </div>
       )}
 
       {/* New Sponsor Form */}

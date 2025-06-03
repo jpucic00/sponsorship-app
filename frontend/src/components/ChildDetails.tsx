@@ -1,4 +1,3 @@
-// File: src/components/ChildDetails.tsx
 import React, { useState, useEffect } from "react";
 import {
   ArrowLeft,
@@ -15,6 +14,10 @@ import {
   UserCheck,
   Clock,
   MapPin,
+  Plus,
+  X,
+  DollarSign,
+  CreditCard,
 } from "lucide-react";
 
 interface Child {
@@ -41,12 +44,14 @@ interface Child {
     name: string;
     location: string;
   };
-  sponsorship?: {
+  sponsorships: Array<{
     id: number;
     monthlyAmount?: number;
     paymentMethod?: string;
     startDate: string;
+    endDate?: string;
     notes?: string;
+    isActive: boolean;
     sponsor: {
       id: number;
       fullName: string;
@@ -56,7 +61,7 @@ interface Child {
         role: string;
       };
     };
-  };
+  }>;
 }
 
 interface ChildDetailsProps {
@@ -70,9 +75,12 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
 }) => {
   const [child, setChild] = useState<Child | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAddSponsor, setShowAddSponsor] = useState(false);
+  const [availableSponsors, setAvailableSponsors] = useState<any[]>([]);
 
   useEffect(() => {
     fetchChildDetails(childId);
+    fetchAvailableSponsors();
   }, [childId]);
 
   const fetchChildDetails = async (id: number) => {
@@ -88,6 +96,63 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
       console.error("Error fetching child details:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAvailableSponsors = async () => {
+    try {
+      const response = await fetch("/api/sponsors");
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableSponsors(data);
+      }
+    } catch (error) {
+      console.error("Error fetching sponsors:", error);
+    }
+  };
+
+  const handleAddSponsor = async (sponsorId: number) => {
+    try {
+      const response = await fetch(`/api/children/${childId}/sponsors`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ sponsorId }),
+      });
+
+      if (response.ok) {
+        await fetchChildDetails(childId);
+        setShowAddSponsor(false);
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to add sponsor");
+      }
+    } catch (error) {
+      console.error("Error adding sponsor:", error);
+      alert("Failed to add sponsor");
+    }
+  };
+
+  const handleRemoveSponsor = async (sponsorId: number) => {
+    if (confirm("Are you sure you want to end this sponsorship?")) {
+      try {
+        const response = await fetch(
+          `/api/children/${childId}/sponsors/${sponsorId}`,
+          {
+            method: "DELETE",
+          }
+        );
+
+        if (response.ok) {
+          await fetchChildDetails(childId);
+        } else {
+          alert("Failed to end sponsorship");
+        }
+      } catch (error) {
+        console.error("Error ending sponsorship:", error);
+        alert("Failed to end sponsorship");
+      }
     }
   };
 
@@ -139,6 +204,9 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
     );
   }
 
+  const activeSponsors = child.sponsorships.filter((s) => s.isActive);
+  const inactiveSponsors = child.sponsorships.filter((s) => !s.isActive);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
       <div className="max-w-6xl mx-auto px-4">
@@ -170,6 +238,11 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                 <span className="text-gray-600">
                   {calculateAge(child.dateOfBirth)} years old • {child.gender}
                 </span>
+                {activeSponsors.length > 1 && (
+                  <span className="bg-purple-100 text-purple-800 px-3 py-1 text-sm font-semibold rounded-full">
+                    {activeSponsors.length} Active Sponsors
+                  </span>
+                )}
               </div>
             </div>
 
@@ -297,107 +370,6 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-8">
-            {/* Sponsorship Info */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-              <div className="flex items-center space-x-3 mb-6">
-                <Heart className="text-red-500" size={28} />
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Sponsorship
-                </h2>
-              </div>
-
-              {child.sponsorship ? (
-                <div className="space-y-4">
-                  <div className="bg-green-50 p-4 rounded-xl border border-green-200">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <UserCheck className="text-green-600" size={18} />
-                      <span className="font-semibold text-green-700">
-                        Sponsored by
-                      </span>
-                    </div>
-                    <p className="text-gray-900 font-bold">
-                      {child.sponsorship.sponsor.fullName}
-                    </p>
-                    {child.sponsorship.sponsor.proxy && (
-                      <p className="text-purple-600 text-sm mt-1">
-                        Via: {child.sponsorship.sponsor.proxy.fullName} (
-                        {child.sponsorship.sponsor.proxy.role})
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Clock className="text-blue-600" size={18} />
-                      <span className="font-semibold text-blue-700">Since</span>
-                    </div>
-                    <p className="text-gray-900">
-                      {new Date(
-                        child.sponsorship.startDate
-                      ).toLocaleDateString()}
-                    </p>
-                  </div>
-
-                  {child.sponsorship.monthlyAmount && (
-                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <span className="font-semibold text-yellow-700">
-                          Monthly Amount
-                        </span>
-                      </div>
-                      <p className="text-gray-900 font-bold">
-                        ${child.sponsorship.monthlyAmount}
-                      </p>
-                      {child.sponsorship.paymentMethod && (
-                        <p className="text-gray-600 text-sm">
-                          via {child.sponsorship.paymentMethod}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Phone className="text-gray-600" size={18} />
-                      <span className="font-semibold text-gray-700">
-                        Contact
-                      </span>
-                    </div>
-                    <p className="text-gray-900 text-sm break-words">
-                      {child.sponsorship.sponsor.contact}
-                    </p>
-                  </div>
-
-                  {child.sponsorship.notes && (
-                    <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <FileText className="text-indigo-600" size={18} />
-                        <span className="font-semibold text-indigo-700">
-                          Notes
-                        </span>
-                      </div>
-                      <p className="text-gray-800 text-sm">
-                        {child.sponsorship.notes}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="text-6xl mb-4">💝</div>
-                  <p className="text-gray-600 mb-4">
-                    This child needs a sponsor
-                  </p>
-                  <button className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all">
-                    Find Sponsor
-                  </button>
-                </div>
-              )}
-            </div>
 
             {/* Family Information */}
             <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
@@ -466,6 +438,173 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-8">
+            {/* Sponsorship Info */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <Heart className="text-red-500" size={28} />
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Sponsorships
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setShowAddSponsor(true)}
+                  className="flex items-center space-x-1 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Plus size={16} />
+                  <span>Add Sponsor</span>
+                </button>
+              </div>
+
+              {activeSponsors.length > 0 ? (
+                <div className="space-y-4">
+                  {activeSponsors.map((sponsorship) => (
+                    <div
+                      key={sponsorship.id}
+                      className="bg-green-50 rounded-2xl p-6 border border-green-200"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <div className="flex items-center space-x-2 mb-2">
+                            <UserCheck className="text-green-600" size={18} />
+                            <span className="font-semibold text-green-700">
+                              Active Sponsor
+                            </span>
+                          </div>
+                          <p className="text-gray-900 font-bold">
+                            {sponsorship.sponsor.fullName}
+                          </p>
+                          {sponsorship.sponsor.proxy && (
+                            <p className="text-purple-600 text-sm mt-1">
+                              Via: {sponsorship.sponsor.proxy.fullName} (
+                              {sponsorship.sponsor.proxy.role})
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() =>
+                            handleRemoveSponsor(sponsorship.sponsor.id)
+                          }
+                          className="text-red-600 hover:text-red-800 p-1"
+                          title="End sponsorship"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className="bg-white p-3 rounded-lg border border-green-200">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Calendar className="text-green-600" size={16} />
+                            <span className="text-sm font-semibold text-green-700">
+                              Since
+                            </span>
+                          </div>
+                          <p className="text-gray-900">
+                            {new Date(
+                              sponsorship.startDate
+                            ).toLocaleDateString()}
+                          </p>
+                        </div>
+
+                        {sponsorship.monthlyAmount && (
+                          <div className="bg-white p-3 rounded-lg border border-green-200">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <DollarSign
+                                className="text-green-600"
+                                size={16}
+                              />
+                              <span className="text-sm font-semibold text-green-700">
+                                Monthly Amount
+                              </span>
+                            </div>
+                            <p className="text-gray-900 font-bold">
+                              ${sponsorship.monthlyAmount}
+                            </p>
+                            {sponsorship.paymentMethod && (
+                              <p className="text-gray-600 text-sm">
+                                via {sponsorship.paymentMethod}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="bg-white p-3 rounded-lg border border-green-200">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <Phone className="text-green-600" size={16} />
+                            <span className="text-sm font-semibold text-green-700">
+                              Contact
+                            </span>
+                          </div>
+                          <p className="text-gray-900 text-sm break-words">
+                            {sponsorship.sponsor.contact}
+                          </p>
+                        </div>
+
+                        {sponsorship.notes && (
+                          <div className="bg-white p-3 rounded-lg border border-green-200">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <FileText className="text-green-600" size={16} />
+                              <span className="text-sm font-semibold text-green-700">
+                                Notes
+                              </span>
+                            </div>
+                            <p className="text-gray-800 text-sm">
+                              {sponsorship.notes}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">💝</div>
+                  <p className="text-gray-600 mb-4">
+                    This child needs a sponsor
+                  </p>
+                  <button
+                    onClick={() => setShowAddSponsor(true)}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all"
+                  >
+                    Find Sponsor
+                  </button>
+                </div>
+              )}
+
+              {/* Previous Sponsors */}
+              {inactiveSponsors.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                    Previous Sponsors ({inactiveSponsors.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {inactiveSponsors.map((sponsorship) => (
+                      <div
+                        key={sponsorship.id}
+                        className="bg-gray-50 p-3 rounded-lg border border-gray-200"
+                      >
+                        <p className="font-medium text-gray-900">
+                          {sponsorship.sponsor.fullName}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {new Date(sponsorship.startDate).toLocaleDateString()}{" "}
+                          -{" "}
+                          {sponsorship.endDate
+                            ? new Date(sponsorship.endDate).toLocaleDateString()
+                            : "Ended"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Last Updated */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
@@ -481,6 +620,65 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Add Sponsor Modal */}
+        {showAddSponsor && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">
+                  Add Sponsor to {child.firstName} {child.lastName}
+                </h3>
+                <button
+                  onClick={() => setShowAddSponsor(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {availableSponsors
+                  .filter(
+                    (sponsor) =>
+                      !activeSponsors.some((s) => s.sponsor.id === sponsor.id)
+                  )
+                  .map((sponsor) => (
+                    <div
+                      key={sponsor.id}
+                      className="p-4 border border-gray-200 rounded-xl hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all"
+                      onClick={() => handleAddSponsor(sponsor.id)}
+                    >
+                      <h4 className="font-bold text-gray-900">
+                        {sponsor.fullName}
+                      </h4>
+                      <p className="text-gray-600 text-sm mt-1">
+                        {sponsor.contact}
+                      </p>
+                      {sponsor.proxy && (
+                        <p className="text-purple-600 text-sm mt-1">
+                          Via: {sponsor.proxy.fullName} ({sponsor.proxy.role})
+                        </p>
+                      )}
+                    </div>
+                  ))}
+              </div>
+
+              {availableSponsors.filter(
+                (sponsor) =>
+                  !activeSponsors.some((s) => s.sponsor.id === sponsor.id)
+              ).length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No available sponsors found</p>
+                  <p className="text-sm mt-2">
+                    All sponsors are already sponsoring this child or no
+                    sponsors exist.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

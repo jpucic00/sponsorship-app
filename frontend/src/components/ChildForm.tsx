@@ -45,7 +45,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
   const [proxies, setProxies] = useState<Proxy[]>([]);
   const [sponsorSearchTerm, setSponsorSearchTerm] = useState("");
   const [showNewSponsorForm, setShowNewSponsorForm] = useState(false);
-  const [selectedSponsor, setSelectedSponsor] = useState<Sponsor | null>(null);
+  const [selectedSponsors, setSelectedSponsors] = useState<Sponsor[]>([]);
 
   // New proxy creation states
   const [showNewProxyForm, setShowNewProxyForm] = useState(false);
@@ -68,7 +68,6 @@ export const ChildForm: React.FC<ChildFormProps> = ({
     story: "",
     comment: "",
     photoUrl: "",
-    sponsorId: "",
     ...initialData,
   });
 
@@ -143,15 +142,21 @@ export const ChildForm: React.FC<ChildFormProps> = ({
   };
 
   const handleSponsorSelect = (sponsor: Sponsor) => {
-    setSelectedSponsor(sponsor);
-    setFormData({ ...formData, sponsorId: sponsor.id.toString() });
+    // Toggle sponsor selection
+    setSelectedSponsors((prev) => {
+      const isAlreadySelected = prev.some((s) => s.id === sponsor.id);
+      if (isAlreadySelected) {
+        return prev.filter((s) => s.id !== sponsor.id);
+      } else {
+        return [...prev, sponsor];
+      }
+    });
     setShowNewSponsorForm(false);
   };
 
   const handleCreateNewSponsor = () => {
     setShowNewSponsorForm(true);
-    setSelectedSponsor(null);
-    setFormData({ ...formData, sponsorId: "" });
+    setSelectedSponsors([]);
   };
 
   const resetForm = () => {
@@ -171,7 +176,6 @@ export const ChildForm: React.FC<ChildFormProps> = ({
       story: "",
       comment: "",
       photoUrl: "",
-      sponsorId: "",
     });
 
     setNewSponsorData({
@@ -192,12 +196,19 @@ export const ChildForm: React.FC<ChildFormProps> = ({
     setProxySearchTerm("");
     setShowNewSponsorForm(false);
     setShowNewProxyForm(false);
-    setSelectedSponsor(null);
+    setSelectedSponsors([]);
     setSelectedProxy(null);
   };
 
   const handleSubmit = async () => {
     let finalData = { ...formData };
+
+    // Convert selected sponsors to IDs
+    if (selectedSponsors.length > 0) {
+      finalData.sponsorIds = selectedSponsors.map((sponsor) =>
+        sponsor.id.toString()
+      );
+    }
 
     if (showNewSponsorForm && newSponsorData.fullName) {
       // Create new proxy first if needed
@@ -235,7 +246,6 @@ export const ChildForm: React.FC<ChildFormProps> = ({
         id: Date.now(),
         ...newSponsorData,
       };
-      finalData.sponsorId = newSponsor.id.toString();
       finalData.newSponsor = newSponsor;
     }
 
@@ -271,7 +281,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
       case 2:
         return formData.fatherFullName && formData.motherFullName;
       case 3:
-        if (selectedSponsor) return true;
+        if (selectedSponsors.length > 0) return true;
         if (
           showNewSponsorForm &&
           newSponsorData.fullName &&
@@ -284,7 +294,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
           }
           return true;
         }
-        return false;
+        return true; // Allow no sponsor selection
       case 4:
         return true;
       default:
@@ -350,8 +360,8 @@ export const ChildForm: React.FC<ChildFormProps> = ({
               setSponsorSearchTerm={setSponsorSearchTerm}
               showNewSponsorForm={showNewSponsorForm}
               setShowNewSponsorForm={setShowNewSponsorForm}
-              selectedSponsor={selectedSponsor}
-              setSelectedSponsor={setSelectedSponsor}
+              selectedSponsors={selectedSponsors}
+              setSelectedSponsors={setSelectedSponsors}
               newSponsorData={newSponsorData}
               handleNewSponsorChange={handleNewSponsorChange}
               showNewProxyForm={showNewProxyForm}
@@ -427,7 +437,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
               fatherFullName: formData.fatherFullName,
               motherFullName: formData.motherFullName,
             }}
-            selectedSponsor={selectedSponsor}
+            selectedSponsors={selectedSponsors}
             showNewSponsorForm={showNewSponsorForm}
             newSponsorData={newSponsorData}
             selectedProxy={selectedProxy}

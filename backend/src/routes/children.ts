@@ -10,7 +10,8 @@ router.get('/', async (req, res) => {
     const children = await prisma.child.findMany({
       include: {
         school: true,
-        sponsorship: {
+        sponsorships: {
+          where: { isActive: true }, // Only get active sponsorships
           include: {
             sponsor: {
               include: {
@@ -22,7 +23,14 @@ router.get('/', async (req, res) => {
       },
       orderBy: { createdAt: 'desc' }
     });
-    res.json(children);
+
+    // Add computed isSponsored field based on active sponsorships
+    const childrenWithStatus = children.map(child => ({
+      ...child,
+      isSponsored: (child.sponsorships?.length || 0) > 0
+    }));
+
+    res.json(childrenWithStatus);
   } catch (error) {
     console.error('Error fetching children:', error);
     res.status(500).json({ error: 'Failed to fetch children' });
@@ -48,13 +56,18 @@ router.post('/', async (req, res) => {
       story,
       comment,
       photoUrl,
-      sponsorId,
+      sponsorIds = [], // Accept array of sponsor IDs
       newSponsor
     } = req.body;
 
     // Start a transaction to ensure data consistency
     const result = await prisma.$transaction(async (tx) => {
-      let finalSponsorId = sponsorId ? parseInt(sponsorId) : null;
+      let finalSponsorIds: number[] = [];
+
+      // Handle existing sponsor IDs
+      if (sponsorIds && sponsorIds.length > 0) {
+        finalSponsorIds = sponsorIds.map((id: string) => parseInt(id));
+      }
 
       // If we need to create a new sponsor
       if (newSponsor && newSponsor.fullName) {
@@ -65,7 +78,7 @@ router.post('/', async (req, res) => {
             proxyId: newSponsor.proxyId ? parseInt(newSponsor.proxyId) : null
           }
         });
-        finalSponsorId = createdSponsor.id;
+        finalSponsorIds.push(createdSponsor.id);
       }
 
       // Create the child
@@ -88,23 +101,27 @@ router.post('/', async (req, res) => {
           photoUrl,
           dateEnteredRegister: new Date(),
           lastProfileUpdate: new Date(),
-          isSponsored: finalSponsorId ? true : false
+          isSponsored: finalSponsorIds.length > 0
         },
         include: {
           school: true
         }
       });
 
-      // If we have a sponsor, create the sponsorship relationship
-      if (finalSponsorId) {
-        await tx.sponsorship.create({
-          data: {
-            childId: child.id,
-            sponsorId: finalSponsorId,
-            startDate: new Date(),
-            isActive: true
-          }
-        });
+      // Create sponsorship relationships for each sponsor
+      if (finalSponsorIds.length > 0) {
+        await Promise.all(
+          finalSponsorIds.map(sponsorId =>
+            tx.sponsorship.create({
+              data: {
+                childId: child.id,
+                sponsorId: sponsorId,
+                startDate: new Date(),
+                isActive: true
+              }
+            })
+          )
+        );
       }
 
       return child;
@@ -115,7 +132,8 @@ router.post('/', async (req, res) => {
       where: { id: result.id },
       include: {
         school: true,
-        sponsorship: {
+        sponsorships: {
+          where: { isActive: true },
           include: {
             sponsor: {
               include: {
@@ -127,10 +145,120 @@ router.post('/', async (req, res) => {
       }
     });
 
-    res.status(201).json(completeChild);
+    res.status(201).json({
+      ...completeChild,
+      isSponsored: (completeChild?.sponsorships?.length || 0) > 0
+    });
   } catch (error) {
     console.error('Error creating child:', error);
     res.status(500).json({ error: 'Failed to create child record' });
+  }
+});
+
+// POST add sponsor to existing child
+router.post('/:id/sponsors', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sponsorId, monthlyAmount, paymentMethod, notes } = req.body;
+
+    // Check if this sponsorship already exists and is active
+    const existingSponsorship = await prisma.sponsorship.findFirst({
+      where: {
+        childId: parseInt(id),
+        sponsorId: parseInt(sponsorId),
+        isActive: true
+      }
+    });
+
+    if (existingSponsorship) {
+      return res.status(400).json({ error: 'This sponsor is already sponsoring this child' });
+    }
+
+    const sponsorship = await prisma.sponsorship.create({
+      data: {
+        childId: parseInt(id),
+        sponsorId: parseInt(sponsorId),
+        monthlyAmount: monthlyAmount ? parseFloat(monthlyAmount) : null,
+        paymentMethod,
+        notes,
+        startDate: new Date(),
+        isActive: true
+      },
+      include: {
+        child: {
+          include: {
+            school: true
+          }
+        },
+        sponsor: {
+          include: {
+            proxy: true
+          }
+        }
+      }
+    });
+
+    // Update child's sponsored status
+    await prisma.child.update({
+      where: { id: parseInt(id) },
+      data: { 
+        isSponsored: true,
+        lastProfileUpdate: new Date()
+      }
+    });
+
+    res.status(201).json(sponsorship);
+  } catch (error) {
+    console.error('Error adding sponsor to child:', error);
+    res.status(500).json({ error: 'Failed to add sponsor to child' });
+  }
+});
+
+// DELETE remove sponsor from child (end sponsorship)
+router.delete('/:id/sponsors/:sponsorId', async (req, res) => {
+  try {
+    const { id, sponsorId } = req.params;
+
+    // End the sponsorship by setting isActive to false and endDate
+    const sponsorship = await prisma.sponsorship.updateMany({
+      where: {
+        childId: parseInt(id),
+        sponsorId: parseInt(sponsorId),
+        isActive: true
+      },
+      data: {
+        isActive: false,
+        endDate: new Date()
+      }
+    });
+
+    if (sponsorship.count === 0) {
+      return res.status(404).json({ error: 'Active sponsorship not found' });
+    }
+
+    // Check if child still has other active sponsorships
+    const remainingSponsorships = await prisma.sponsorship.count({
+      where: {
+        childId: parseInt(id),
+        isActive: true
+      }
+    });
+
+    // Update child's sponsored status if no more active sponsorships
+    if (remainingSponsorships === 0) {
+      await prisma.child.update({
+        where: { id: parseInt(id) },
+        data: { 
+          isSponsored: false,
+          lastProfileUpdate: new Date()
+        }
+      });
+    }
+
+    res.json({ message: 'Sponsorship ended successfully' });
+  } catch (error) {
+    console.error('Error ending sponsorship:', error);
+    res.status(500).json({ error: 'Failed to end sponsorship' });
   }
 });
 
@@ -155,7 +283,8 @@ router.put('/:id', async (req, res) => {
       data: updateData,
       include: {
         school: true,
-        sponsorship: {
+        sponsorships: {
+          where: { isActive: true },
           include: {
             sponsor: {
               include: {
@@ -167,7 +296,10 @@ router.put('/:id', async (req, res) => {
       }
     });
 
-    res.json(child);
+    res.json({
+      ...child,
+      isSponsored: (child.sponsorships?.length || 0) > 0
+    });
   } catch (error) {
     console.error('Error updating child:', error);
     res.status(500).json({ error: 'Failed to update child record' });
@@ -182,7 +314,8 @@ router.get('/:id', async (req, res) => {
       where: { id: parseInt(id) },
       include: {
         school: true,
-        sponsorship: {
+        sponsorships: {
+          where: { isActive: true },
           include: {
             sponsor: {
               include: {
@@ -198,7 +331,10 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Child not found' });
     }
 
-    res.json(child);
+    res.json({
+      ...child,
+      isSponsored: (child?.sponsorships?.length || 0) > 0
+    });
   } catch (error) {
     console.error('Error fetching child:', error);
     res.status(500).json({ error: 'Failed to fetch child' });
