@@ -11,7 +11,7 @@ import { SponsorForm } from "./components/SponsorForm";
 import { ExcelImport } from "./components/ExcelImport";
 import { Dashboard } from "./components/Dashboard";
 import { ChildrenContainer } from "./components/ChildrenContainer";
-import { SponsorsList } from "./components/SponsorsList";
+import { SponsorsContainer } from "./components/SponsorsContainer";
 import {
   LayoutDashboard,
   Users,
@@ -253,7 +253,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/children" element={<ChildrenContainer />} />
-            <Route path="/sponsors" element={<SponsorsList />} />
+            <Route path="/sponsors" element={<SponsorsContainer />} />
             <Route
               path="/register-child"
               element={<ChildForm onSubmit={handleChildSubmit} />}

@@ -32,7 +32,13 @@ interface Sponsor {
   }>;
 }
 
-export const SponsorsList: React.FC = () => {
+interface SponsorsListProps {
+  onViewSponsor: (sponsorId: number) => void;
+}
+
+export const SponsorsList: React.FC<SponsorsListProps> = ({
+  onViewSponsor,
+}) => {
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -170,7 +176,9 @@ export const SponsorsList: React.FC = () => {
                               size={16}
                             />
                             <div className="text-sm text-gray-900 max-w-xs break-words">
-                              {sponsor.contact}
+                              {sponsor.contact.length > 50
+                                ? `${sponsor.contact.substring(0, 50)}...`
+                                : sponsor.contact}
                             </div>
                           </div>
                         </td>
@@ -197,8 +205,9 @@ export const SponsorsList: React.FC = () => {
                         <td className="px-8 py-6">
                           {sponsor.sponsorships.length > 0 ? (
                             <div className="space-y-2">
-                              {sponsor.sponsorships.map(
-                                (sponsorship, index) => (
+                              {sponsor.sponsorships
+                                .slice(0, 2)
+                                .map((sponsorship, index) => (
                                   <div
                                     key={index}
                                     className="bg-green-50 p-2 rounded-lg border border-green-200"
@@ -211,7 +220,11 @@ export const SponsorsList: React.FC = () => {
                                       {sponsorship.child.school.name}
                                     </div>
                                   </div>
-                                )
+                                ))}
+                              {sponsor.sponsorships.length > 2 && (
+                                <div className="text-xs text-gray-500">
+                                  +{sponsor.sponsorships.length - 2} more
+                                </div>
                               )}
                             </div>
                           ) : (
@@ -225,7 +238,10 @@ export const SponsorsList: React.FC = () => {
 
                         <td className="px-8 py-6">
                           <div className="flex space-x-2">
-                            <button className="flex items-center space-x-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                            <button
+                              onClick={() => onViewSponsor(sponsor.id)}
+                              className="flex items-center space-x-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                            >
                               <Eye size={14} />
                               <span>View</span>
                             </button>
@@ -275,7 +291,9 @@ export const SponsorsList: React.FC = () => {
                     <div className="flex items-start space-x-2">
                       <Phone className="text-blue-500 mt-1" size={16} />
                       <div className="text-sm text-gray-900 break-words">
-                        {sponsor.contact}
+                        {sponsor.contact.length > 100
+                          ? `${sponsor.contact.substring(0, 100)}...`
+                          : sponsor.contact}
                       </div>
                     </div>
 
@@ -293,22 +311,29 @@ export const SponsorsList: React.FC = () => {
                     {sponsor.sponsorships.length > 0 ? (
                       <div className="space-y-2">
                         <p className="text-sm font-medium text-gray-700">
-                          Sponsored Children:
+                          Sponsored Children ({sponsor.sponsorships.length}):
                         </p>
-                        {sponsor.sponsorships.map((sponsorship, index) => (
-                          <div
-                            key={index}
-                            className="bg-green-50 p-2 rounded-lg border border-green-200"
-                          >
-                            <div className="text-sm font-semibold text-green-900">
-                              {sponsorship.child.firstName}{" "}
-                              {sponsorship.child.lastName}
+                        {sponsor.sponsorships
+                          .slice(0, 2)
+                          .map((sponsorship, index) => (
+                            <div
+                              key={index}
+                              className="bg-green-50 p-2 rounded-lg border border-green-200"
+                            >
+                              <div className="text-sm font-semibold text-green-900">
+                                {sponsorship.child.firstName}{" "}
+                                {sponsorship.child.lastName}
+                              </div>
+                              <div className="text-xs text-green-600">
+                                {sponsorship.child.school.name}
+                              </div>
                             </div>
-                            <div className="text-xs text-green-600">
-                              {sponsorship.child.school.name}
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                        {sponsor.sponsorships.length > 2 && (
+                          <p className="text-xs text-gray-500">
+                            +{sponsor.sponsorships.length - 2} more children
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
@@ -320,8 +345,11 @@ export const SponsorsList: React.FC = () => {
                   </div>
 
                   <div className="flex space-x-2">
-                    <button className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
-                      View
+                    <button
+                      onClick={() => onViewSponsor(sponsor.id)}
+                      className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                    >
+                      View Details
                     </button>
                     <button className="flex-1 px-3 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200">
                       Edit
