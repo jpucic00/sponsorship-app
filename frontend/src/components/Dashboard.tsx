@@ -34,27 +34,53 @@ export const Dashboard: React.FC = () => {
 
   const fetchDashboardData = async () => {
     try {
+      // Fetch first page of children with a limit to get total count
       const [childrenRes, sponsorsRes, schoolsRes] = await Promise.all([
-        fetch("/api/children"),
-        fetch("/api/sponsors"),
+        fetch("/api/children?page=1&limit=5"), // Get first 5 for recent children
+        fetch("/api/sponsors?page=1&limit=1"), // Just need total count
         fetch("/api/schools"),
       ]);
 
-      const children = await childrenRes.json();
-      const sponsors = await sponsorsRes.json();
+      const childrenData = await childrenRes.json();
+      const sponsorsData = await sponsorsRes.json();
       const schools = await schoolsRes.json();
+
+      // Handle both paginated and non-paginated responses
+      const children = childrenData.data || childrenData;
+      const sponsors = sponsorsData.data || sponsorsData;
+
+      // Get total counts from pagination info if available
+      const totalChildren =
+        childrenData.pagination?.totalCount || children.length;
+      const totalSponsors =
+        sponsorsData.pagination?.totalCount || sponsors.length;
 
       const sponsoredChildren = children.filter(
         (child: any) => child.isSponsored
       ).length;
-      const recentChildren = children.slice(0, 5);
+
+      // For the full sponsored count, we need to make another API call
+      // since we only got 5 children for the recent list
+      let fullSponsoredCount = sponsoredChildren;
+      if (childrenData.pagination) {
+        // Make a call to get just sponsored children count
+        try {
+          const sponsoredRes = await fetch(
+            "/api/children?sponsorship=sponsored&limit=1"
+          );
+          const sponsoredData = await sponsoredRes.json();
+          fullSponsoredCount = sponsoredData.pagination?.totalCount || 0;
+        } catch (error) {
+          console.error("Error fetching sponsored children count:", error);
+        }
+      }
 
       setStats({
-        totalChildren: children.length,
-        sponsoredChildren,
-        totalSponsors: sponsors.length,
+        totalChildren,
+        sponsoredChildren: fullSponsoredCount,
+        totalSponsors,
         totalSchools: schools.length,
-        recentChildren,
+        recentChildren: children.slice(0, 5),
       });
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -269,7 +295,7 @@ export const Dashboard: React.FC = () => {
                 to="/children"
                 className="text-blue-600 hover:text-blue-800 font-semibold flex items-center space-x-2 transition-colors duration-200"
               >
-                <span>View All</span>
+                <span>View All ({stats.totalChildren})</span>
                 <span>→</span>
               </Link>
             </div>
@@ -325,8 +351,79 @@ export const Dashboard: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Show pagination info */}
+            <div className="mt-4 text-center">
+              <p className="text-sm text-gray-600">
+                Showing {stats.recentChildren.length} of {stats.totalChildren}{" "}
+                children.{" "}
+                <Link
+                  to="/children"
+                  className="text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  View all children with pagination →
+                </Link>
+              </p>
+            </div>
           </div>
         )}
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+              <Heart className="text-red-500 mr-2" size={20} />
+              Sponsorship Overview
+            </h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">
+                  Children needing sponsors:
+                </span>
+                <span className="font-bold text-yellow-600">
+                  {stats.totalChildren - stats.sponsoredChildren}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Active sponsorships:</span>
+                <span className="font-bold text-green-600">
+                  {stats.sponsoredChildren}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Available sponsors:</span>
+                <span className="font-bold text-blue-600">
+                  {stats.totalSponsors}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+              <GraduationCap className="text-purple-500 mr-2" size={20} />
+              System Overview
+            </h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Schools registered:</span>
+                <span className="font-bold text-purple-600">
+                  {stats.totalSchools}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Children per page:</span>
+                <span className="font-bold text-indigo-600">20</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Total pages:</span>
+                <span className="font-bold text-indigo-600">
+                  {Math.ceil(stats.totalChildren / 20)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

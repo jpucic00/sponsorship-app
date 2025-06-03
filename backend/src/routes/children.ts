@@ -4,14 +4,98 @@ import { PrismaClient } from '@prisma/client';
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// GET all children - MUST be first
+// GET all children with pagination - MUST be first
 router.get('/', async (req, res) => {
   try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const search = req.query.search as string || '';
+    const sponsorship = req.query.sponsorship as string; // 'sponsored' | 'unsponsored' | undefined
+    const gender = req.query.gender as string; // 'male' | 'female' | undefined
+    const schoolId = req.query.schoolId as string;
+    const sponsorId = req.query.sponsorId as string;
+    const proxyId = req.query.proxyId as string;
+
+    const skip = (page - 1) * limit;
+
+    // Build where clause based on filters
+    const where: any = {};
+
+    // Search filter
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { school: { name: { contains: search, mode: 'insensitive' } } }
+      ];
+    }
+
+    // Gender filter
+    if (gender && gender !== 'all') {
+      where.gender = { equals: gender, mode: 'insensitive' };
+    }
+
+    // School filter
+    if (schoolId && schoolId !== 'all') {
+      where.schoolId = parseInt(schoolId);
+    }
+
+    // Sponsorship filter - handled after initial query due to relationship complexity
+    let sponsorshipFilter = null;
+    if (sponsorship === 'sponsored') {
+      sponsorshipFilter = 'sponsored';
+    } else if (sponsorship === 'unsponsored') {
+      sponsorshipFilter = 'unsponsored';
+    }
+
+    // For sponsor and proxy filters, we need to use relationship queries
+    if (sponsorId && sponsorId !== 'all') {
+      if (sponsorId === 'none') {
+        where.sponsorships = { none: { isActive: true } };
+      } else {
+        where.sponsorships = {
+          some: {
+            sponsorId: parseInt(sponsorId),
+            isActive: true
+          }
+        };
+      }
+    }
+
+    if (proxyId && proxyId !== 'all') {
+      if (proxyId === 'none') {
+        where.sponsorships = {
+          every: {
+            sponsor: { proxyId: null }
+          }
+        };
+      } else if (proxyId === 'direct') {
+        where.sponsorships = {
+          some: {
+            sponsor: { proxyId: null },
+            isActive: true
+          }
+        };
+      } else {
+        where.sponsorships = {
+          some: {
+            sponsor: { proxyId: parseInt(proxyId) },
+            isActive: true
+          }
+        };
+      }
+    }
+
+    // Get total count for pagination
+    const totalCount = await prisma.child.count({ where });
+
+    // Get paginated children
     const children = await prisma.child.findMany({
+      where,
       include: {
         school: true,
         sponsorships: {
-          where: { isActive: true }, // Only get active sponsorships
+          where: { isActive: true },
           include: {
             sponsor: {
               include: {
@@ -21,16 +105,56 @@ router.get('/', async (req, res) => {
           }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
     });
 
-    // Add computed isSponsored field based on active sponsorships
-    const childrenWithStatus = children.map(child => ({
+    // Add computed isSponsored field and apply sponsorship filter if needed
+    let childrenWithStatus = children.map(child => ({
       ...child,
       isSponsored: (child.sponsorships?.length || 0) > 0
     }));
 
-    res.json(childrenWithStatus);
+    // Apply sponsorship filter post-query if specified
+    if (sponsorshipFilter === 'sponsored') {
+      childrenWithStatus = childrenWithStatus.filter(child => child.isSponsored);
+    } else if (sponsorshipFilter === 'unsponsored') {
+      childrenWithStatus = childrenWithStatus.filter(child => !child.isSponsored);
+    }
+
+    // Recalculate pagination if sponsorship filter was applied
+    let finalCount = totalCount;
+    if (sponsorshipFilter) {
+      // Get actual count with sponsorship filter
+      const sponsoredCount = await prisma.child.count({
+        where: {
+          ...where,
+          sponsorships: sponsorshipFilter === 'sponsored' 
+            ? { some: { isActive: true } }
+            : { none: { isActive: true } }
+        }
+      });
+      finalCount = sponsoredCount;
+    }
+
+    const totalPages = Math.ceil(finalCount / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    res.json({
+      data: childrenWithStatus,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalCount: finalCount,
+        limit,
+        hasNextPage,
+        hasPrevPage,
+        startIndex: skip + 1,
+        endIndex: Math.min(skip + limit, finalCount)
+      }
+    });
   } catch (error) {
     console.error('Error fetching children:', error);
     res.status(500).json({ error: 'Failed to fetch children' });
@@ -56,20 +180,17 @@ router.post('/', async (req, res) => {
       story,
       comment,
       photoUrl,
-      sponsorIds = [], // Accept array of sponsor IDs
+      sponsorIds = [],
       newSponsor
     } = req.body;
 
-    // Start a transaction to ensure data consistency
     const result = await prisma.$transaction(async (tx) => {
       let finalSponsorIds: number[] = [];
 
-      // Handle existing sponsor IDs
       if (sponsorIds && sponsorIds.length > 0) {
         finalSponsorIds = sponsorIds.map((id: string) => parseInt(id));
       }
 
-      // If we need to create a new sponsor
       if (newSponsor && newSponsor.fullName) {
         const createdSponsor = await tx.sponsor.create({
           data: {
@@ -81,7 +202,6 @@ router.post('/', async (req, res) => {
         finalSponsorIds.push(createdSponsor.id);
       }
 
-      // Create the child
       const child = await tx.child.create({
         data: {
           firstName,
@@ -108,7 +228,6 @@ router.post('/', async (req, res) => {
         }
       });
 
-      // Create sponsorship relationships for each sponsor
       if (finalSponsorIds.length > 0) {
         await Promise.all(
           finalSponsorIds.map(sponsorId =>
@@ -127,7 +246,6 @@ router.post('/', async (req, res) => {
       return child;
     });
 
-    // Return the complete child data with relationships
     const completeChild = await prisma.child.findUnique({
       where: { id: result.id },
       include: {
@@ -161,7 +279,6 @@ router.post('/:id/sponsors', async (req, res) => {
     const { id } = req.params;
     const { sponsorId, monthlyAmount, paymentMethod, notes } = req.body;
 
-    // Check if this sponsorship already exists and is active
     const existingSponsorship = await prisma.sponsorship.findFirst({
       where: {
         childId: parseInt(id),
@@ -198,7 +315,6 @@ router.post('/:id/sponsors', async (req, res) => {
       }
     });
 
-    // Update child's sponsored status
     await prisma.child.update({
       where: { id: parseInt(id) },
       data: { 
@@ -219,7 +335,6 @@ router.delete('/:id/sponsors/:sponsorId', async (req, res) => {
   try {
     const { id, sponsorId } = req.params;
 
-    // End the sponsorship by setting isActive to false and endDate
     const sponsorship = await prisma.sponsorship.updateMany({
       where: {
         childId: parseInt(id),
@@ -236,7 +351,6 @@ router.delete('/:id/sponsors/:sponsorId', async (req, res) => {
       return res.status(404).json({ error: 'Active sponsorship not found' });
     }
 
-    // Check if child still has other active sponsorships
     const remainingSponsorships = await prisma.sponsorship.count({
       where: {
         childId: parseInt(id),
@@ -244,7 +358,6 @@ router.delete('/:id/sponsors/:sponsorId', async (req, res) => {
       }
     });
 
-    // Update child's sponsored status if no more active sponsorships
     if (remainingSponsorships === 0) {
       await prisma.child.update({
         where: { id: parseInt(id) },

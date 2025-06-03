@@ -104,7 +104,8 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
       const response = await fetch("/api/sponsors");
       if (response.ok) {
         const data = await response.json();
-        setAvailableSponsors(data);
+        // Handle both paginated and non-paginated responses
+        setAvailableSponsors(data.data || data || []);
       }
     } catch (error) {
       console.error("Error fetching sponsors:", error);

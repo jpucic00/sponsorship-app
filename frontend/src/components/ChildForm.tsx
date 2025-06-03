@@ -101,7 +101,8 @@ export const ChildForm: React.FC<ChildFormProps> = ({
       const proxiesData = await proxiesRes.json();
 
       setSchools(schoolsData);
-      setSponsors(sponsorsData);
+      // Handle both paginated and non-paginated responses
+      setSponsors(sponsorsData.data || sponsorsData || []);
       setProxies(proxiesData);
     } catch (error) {
       console.error("Error fetching data:", error);

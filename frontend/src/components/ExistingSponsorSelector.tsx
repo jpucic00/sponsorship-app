@@ -28,7 +28,10 @@ export const ExistingSponsorSelector: React.FC<
   selectedSponsors,
   onSponsorSelect,
 }) => {
-  const filteredSponsors = sponsors.filter(
+  // Ensure sponsors is an array - handle both paginated and non-paginated responses
+  const sponsorsArray = Array.isArray(sponsors) ? sponsors : [];
+
+  const filteredSponsors = sponsorsArray.filter(
     (sponsor) =>
       sponsor.fullName
         .toLowerCase()

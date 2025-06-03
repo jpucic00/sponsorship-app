@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   Search,
@@ -16,6 +16,7 @@ import {
   Link2,
   ChevronDown,
 } from "lucide-react";
+import { Pagination } from "./Pagination";
 
 interface Child {
   id: number;
@@ -66,6 +67,17 @@ interface Proxy {
   role: string;
 }
 
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  limit: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+  startIndex: number;
+  endIndex: number;
+}
+
 interface ChildrenListProps {
   onViewChild: (childId: number) => void;
 }
@@ -101,21 +113,19 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   const selectedOption = options.find((opt) => opt.value === value);
 
-  // Update position when dropdown opens
   useEffect(() => {
     if (isOpen && buttonRef.current) {
       const updatePosition = () => {
         const rect = buttonRef.current!.getBoundingClientRect();
         setPosition({
-          top: rect.bottom, // Remove window.scrollY
-          left: rect.left, // Remove window.scrollX
+          top: rect.bottom,
+          left: rect.left,
           width: rect.width,
         });
       };
 
       updatePosition();
 
-      // Update position on scroll/resize
       const handleUpdate = () => updatePosition();
       window.addEventListener("scroll", handleUpdate, { passive: true });
       window.addEventListener("resize", handleUpdate, { passive: true });
@@ -127,7 +137,6 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     }
   }, [isOpen]);
 
-  // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -182,7 +191,6 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
           />
         </button>
 
-        {/* Portal dropdown */}
         {isOpen &&
           createPortal(
             <div
@@ -249,6 +257,16 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [proxies, setProxies] = useState<Proxy[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    limit: 20,
+    hasNextPage: false,
+    hasPrevPage: false,
+    startIndex: 1,
+    endIndex: 1,
+  });
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
@@ -264,85 +282,106 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
   const [sponsorSearchTerm, setSponsorSearchTerm] = useState("");
   const [proxySearchTerm, setProxySearchTerm] = useState("");
 
+  // Debounced search
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
+  // Debounce search term
   useEffect(() => {
-    fetchData();
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const fetchData = useCallback(
+    async (page: number = 1, resetPage: boolean = false) => {
+      setLoading(true);
+      try {
+        // Build query parameters
+        const params = new URLSearchParams({
+          page: resetPage ? "1" : page.toString(),
+          limit: "20",
+          search: debouncedSearchTerm,
+        });
+
+        if (filterSponsored !== "all") {
+          params.append("sponsorship", filterSponsored);
+        }
+        if (filterGender !== "all") {
+          params.append("gender", filterGender);
+        }
+        if (filterSchool !== "all") {
+          params.append("schoolId", filterSchool);
+        }
+        if (filterSponsor !== "all") {
+          params.append("sponsorId", filterSponsor);
+        }
+        if (filterProxy !== "all") {
+          params.append("proxyId", filterProxy);
+        }
+
+        const [childrenRes, schoolsRes, sponsorsRes, proxiesRes] =
+          await Promise.all([
+            fetch(`/api/children?${params.toString()}`),
+            fetch("/api/schools"),
+            fetch("/api/sponsors"),
+            fetch("/api/proxies"),
+          ]);
+
+        const childrenData = await childrenRes.json();
+        const schoolsData = await schoolsRes.json();
+        const sponsorsData = await sponsorsRes.json();
+        const proxiesData = await proxiesRes.json();
+
+        setChildren(childrenData.data || []);
+        setPagination(childrenData.pagination || pagination);
+        setSchools(schoolsData);
+        setSponsors(sponsorsData.data || sponsorsData); // Handle both paginated and non-paginated responses
+        setProxies(proxiesData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      debouncedSearchTerm,
+      filterSponsored,
+      filterGender,
+      filterSchool,
+      filterSponsor,
+      filterProxy,
+      pagination,
+    ]
+  );
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchData(1, true);
   }, []);
 
-  const fetchData = async () => {
-    try {
-      const [childrenRes, schoolsRes, sponsorsRes, proxiesRes] =
-        await Promise.all([
-          fetch("/api/children"),
-          fetch("/api/schools"),
-          fetch("/api/sponsors"),
-          fetch("/api/proxies"),
-        ]);
-
-      const childrenData = await childrenRes.json();
-      const schoolsData = await schoolsRes.json();
-      const sponsorsData = await sponsorsRes.json();
-      const proxiesData = await proxiesRes.json();
-
-      setChildren(childrenData);
-      setSchools(schoolsData);
-      setSponsors(sponsorsData);
-      setProxies(proxiesData);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
+  // Refetch when filters change
+  useEffect(() => {
+    if (debouncedSearchTerm !== searchTerm) {
+      // Don't refetch while debouncing
+      return;
     }
+    fetchData(1, true);
+  }, [
+    debouncedSearchTerm,
+    filterSponsored,
+    filterGender,
+    filterSchool,
+    filterSponsor,
+    filterProxy,
+  ]);
+
+  const handlePageChange = (page: number) => {
+    fetchData(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  const filteredChildren = children.filter((child) => {
-    // Search filter
-    const matchesSearch =
-      child.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      child.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      child.school.name.toLowerCase().includes(searchTerm.toLowerCase());
-
-    // Sponsorship status filter
-    const matchesSponsored =
-      filterSponsored === "all" ||
-      (filterSponsored === "sponsored" && child.isSponsored) ||
-      (filterSponsored === "unsponsored" && !child.isSponsored);
-
-    // Gender filter
-    const matchesGender =
-      filterGender === "all" || child.gender.toLowerCase() === filterGender;
-
-    // School filter
-    const matchesSchool =
-      filterSchool === "all" || child.school.id.toString() === filterSchool;
-
-    // Sponsor filter
-    const matchesSponsor =
-      filterSponsor === "all" ||
-      (filterSponsor === "none" && child.sponsorships.length === 0) ||
-      child.sponsorships.some(
-        (sponsorship) => sponsorship.sponsor.id.toString() === filterSponsor
-      );
-
-    // Proxy filter
-    const matchesProxy =
-      filterProxy === "all" ||
-      (filterProxy === "none" &&
-        child.sponsorships.every((s) => !s.sponsor.proxy)) ||
-      (filterProxy === "direct" &&
-        child.sponsorships.some((s) => !s.sponsor.proxy)) ||
-      child.sponsorships.some(
-        (s) => s.sponsor.proxy?.id.toString() === filterProxy
-      );
-
-    return (
-      matchesSearch &&
-      matchesSponsored &&
-      matchesGender &&
-      matchesSchool &&
-      matchesSponsor &&
-      matchesProxy
-    );
-  });
 
   const calculateAge = (dateOfBirth: string) => {
     const today = new Date();
@@ -422,7 +461,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
     })),
   ];
 
-  if (loading) {
+  if (loading && children.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex justify-center items-center">
         <div className="flex flex-col items-center space-y-4">
@@ -442,8 +481,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
             Children Registry
           </h1>
           <p className="text-gray-600 text-xl">
-            {filteredChildren.length} children found
-            {hasActiveFilters && ` (${children.length} total)`}
+            {pagination.totalCount} children found
           </p>
         </div>
 
@@ -656,264 +694,282 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
         </div>
 
         {/* Children Table */}
-        {filteredChildren.length > 0 ? (
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
-            {/* Desktop Table */}
-            <div className="hidden lg:block overflow-x-auto">
-              <table className="min-w-full">
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      Child
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      Age & Gender
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      School & Class
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      Sponsorship Details
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      Registration Date
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredChildren.map((child, index) => (
-                    <tr
-                      key={child.id}
-                      className={`hover:bg-blue-50/50 transition-colors duration-200 ${
-                        index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
-                      }`}
-                    >
-                      {/* Child Name */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold">
-                            {child.firstName[0]}
-                            {child.lastName[0]}
-                          </div>
-                          <div>
-                            <div className="text-lg font-bold text-gray-900">
-                              {child.firstName} {child.lastName}
+        {children.length > 0 ? (
+          <div className="space-y-6">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 overflow-hidden relative">
+              {/* Loading Overlay */}
+              {loading && (
+                <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
+                </div>
+              )}
+
+              {/* Desktop Table */}
+              <div className="hidden lg:block overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                        Child
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                        Age & Gender
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                        School & Class
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                        Sponsorship Details
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                        Registration Date
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {children.map((child, index) => (
+                      <tr
+                        key={child.id}
+                        className={`hover:bg-blue-50/50 transition-colors duration-200 ${
+                          index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
+                        }`}
+                      >
+                        {/* Child Name */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold">
+                              {child.firstName[0]}
+                              {child.lastName[0]}
                             </div>
-                            <div className="text-sm text-gray-600">
-                              ID: #{child.id}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Age & Gender */}
-                      <td className="px-6 py-4">
-                        <div className="text-sm">
-                          <div className="font-semibold text-gray-900">
-                            {calculateAge(child.dateOfBirth)} years old
-                          </div>
-                          <div className="text-gray-600">{child.gender}</div>
-                        </div>
-                      </td>
-
-                      {/* School & Class */}
-                      <td className="px-6 py-4">
-                        <div className="text-sm">
-                          <div className="font-semibold text-gray-900">
-                            {child.school.name}
-                          </div>
-                          <div className="text-gray-600">
-                            {child.class} • {child.school.location}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Sponsorship Details */}
-                      <td className="px-6 py-4">
-                        {child.isSponsored ? (
-                          <div className="space-y-2">
-                            <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                              ✅ Sponsored ({child.sponsorships.length})
-                            </span>
-                            {child.sponsorships
-                              .slice(0, 2)
-                              .map((sponsorship, idx) => (
-                                <div
-                                  key={idx}
-                                  className="text-xs text-gray-600"
-                                >
-                                  <div className="font-medium">
-                                    {sponsorship.sponsor.fullName}
-                                  </div>
-                                  {sponsorship.sponsor.proxy && (
-                                    <div className="text-purple-600">
-                                      via {sponsorship.sponsor.proxy.fullName}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            {child.sponsorships.length > 2 && (
-                              <div className="text-xs text-gray-500">
-                                +{child.sponsorships.length - 2} more
+                            <div>
+                              <div className="text-lg font-bold text-gray-900">
+                                {child.firstName} {child.lastName}
                               </div>
+                              <div className="text-sm text-gray-600">
+                                ID: #{child.id}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Age & Gender */}
+                        <td className="px-6 py-4">
+                          <div className="text-sm">
+                            <div className="font-semibold text-gray-900">
+                              {calculateAge(child.dateOfBirth)} years old
+                            </div>
+                            <div className="text-gray-600">{child.gender}</div>
+                          </div>
+                        </td>
+
+                        {/* School & Class */}
+                        <td className="px-6 py-4">
+                          <div className="text-sm">
+                            <div className="font-semibold text-gray-900">
+                              {child.school.name}
+                            </div>
+                            <div className="text-gray-600">
+                              {child.class} • {child.school.location}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Sponsorship Details */}
+                        <td className="px-6 py-4">
+                          {child.isSponsored ? (
+                            <div className="space-y-2">
+                              <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                ✅ Sponsored ({child.sponsorships.length})
+                              </span>
+                              {child.sponsorships
+                                .slice(0, 2)
+                                .map((sponsorship, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="text-xs text-gray-600"
+                                  >
+                                    <div className="font-medium">
+                                      {sponsorship.sponsor.fullName}
+                                    </div>
+                                    {sponsorship.sponsor.proxy && (
+                                      <div className="text-purple-600">
+                                        via {sponsorship.sponsor.proxy.fullName}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              {child.sponsorships.length > 2 && (
+                                <div className="text-xs text-gray-500">
+                                  +{child.sponsorships.length - 2} more
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                              ⏳ Needs Sponsor
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Registration Date */}
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">
+                            {new Date(
+                              child.dateEnteredRegister
+                            ).toLocaleDateString()}
+                          </div>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-6 py-4">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => onViewChild(child.id)}
+                              className="flex items-center space-x-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                            >
+                              <Eye size={14} />
+                              <span>View</span>
+                            </button>
+                            <button
+                              onClick={() =>
+                                (window.location.href = `/edit-child/${child.id}`)
+                              }
+                              className="flex items-center space-x-1 px-3 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
+                            >
+                              <Edit size={14} />
+                              <span>Edit</span>
+                            </button>
+                            {!child.isSponsored && (
+                              <button className="flex items-center space-x-1 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
+                                <Heart size={14} />
+                                <span>Match</span>
+                              </button>
                             )}
                           </div>
-                        ) : (
-                          <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                            ⏳ Needs Sponsor
-                          </span>
-                        )}
-                      </td>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-                      {/* Registration Date */}
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
+              {/* Mobile Card View */}
+              <div className="lg:hidden space-y-4 p-6">
+                {children.map((child) => (
+                  <div
+                    key={child.id}
+                    className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold">
+                          {child.firstName[0]}
+                          {child.lastName[0]}
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900">
+                            {child.firstName} {child.lastName}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            {calculateAge(child.dateOfBirth)} years •{" "}
+                            {child.gender} • {child.class}
+                          </p>
+                        </div>
+                      </div>
+                      <span
+                        className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${
+                          child.isSponsored
+                            ? "bg-green-100 text-green-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {child.isSponsored
+                          ? "✅ Sponsored"
+                          : "⏳ Needs Sponsor"}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <GraduationCap size={16} />
+                        <span>
+                          {child.school.name}, {child.school.location}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-sm text-gray-600">
+                        <Calendar size={16} />
+                        <span>
+                          Registered:{" "}
                           {new Date(
                             child.dateEnteredRegister
                           ).toLocaleDateString()}
-                        </div>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-6 py-4">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => onViewChild(child.id)}
-                            className="flex items-center space-x-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                          >
-                            <Eye size={14} />
-                            <span>View</span>
-                          </button>
-                          <button
-                            onClick={() =>
-                              (window.location.href = `/edit-child/${child.id}`)
-                            }
-                            className="flex items-center space-x-1 px-3 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
-                          >
-                            <Edit size={14} />
-                            <span>Edit</span>
-                          </button>
-                          {!child.isSponsored && (
-                            <button className="flex items-center space-x-1 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
-                              <Heart size={14} />
-                              <span>Match</span>
-                            </button>
+                        </span>
+                      </div>
+                      {child.isSponsored && child.sponsorships.length > 0 && (
+                        <div className="space-y-1">
+                          {child.sponsorships
+                            .slice(0, 2)
+                            .map((sponsorship, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center space-x-2 text-sm text-green-600"
+                              >
+                                <Heart size={16} />
+                                <span>
+                                  Sponsored by {sponsorship.sponsor.fullName}
+                                  {sponsorship.sponsor.proxy && (
+                                    <span className="text-purple-600">
+                                      {" "}
+                                      via {sponsorship.sponsor.proxy.fullName}
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            ))}
+                          {child.sponsorships.length > 2 && (
+                            <div className="text-xs text-gray-500 ml-6">
+                              +{child.sponsorships.length - 2} more sponsors
+                            </div>
                           )}
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="lg:hidden space-y-4 p-6">
-              {filteredChildren.map((child) => (
-                <div
-                  key={child.id}
-                  className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold">
-                        {child.firstName[0]}
-                        {child.lastName[0]}
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900">
-                          {child.firstName} {child.lastName}
-                        </h3>
-                        <p className="text-sm text-gray-600">
-                          {calculateAge(child.dateOfBirth)} years •{" "}
-                          {child.gender} • {child.class}
-                        </p>
-                      </div>
+                      )}
                     </div>
-                    <span
-                      className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${
-                        child.isSponsored
-                          ? "bg-green-100 text-green-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}
-                    >
-                      {child.isSponsored ? "✅ Sponsored" : "⏳ Needs Sponsor"}
-                    </span>
-                  </div>
 
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <GraduationCap size={16} />
-                      <span>
-                        {child.school.name}, {child.school.location}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <Calendar size={16} />
-                      <span>
-                        Registered:{" "}
-                        {new Date(
-                          child.dateEnteredRegister
-                        ).toLocaleDateString()}
-                      </span>
-                    </div>
-                    {child.isSponsored && child.sponsorships.length > 0 && (
-                      <div className="space-y-1">
-                        {child.sponsorships
-                          .slice(0, 2)
-                          .map((sponsorship, idx) => (
-                            <div
-                              key={idx}
-                              className="flex items-center space-x-2 text-sm text-green-600"
-                            >
-                              <Heart size={16} />
-                              <span>
-                                Sponsored by {sponsorship.sponsor.fullName}
-                                {sponsorship.sponsor.proxy && (
-                                  <span className="text-purple-600">
-                                    {" "}
-                                    via {sponsorship.sponsor.proxy.fullName}
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-                          ))}
-                        {child.sponsorships.length > 2 && (
-                          <div className="text-xs text-gray-500 ml-6">
-                            +{child.sponsorships.length - 2} more sponsors
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => onViewChild(child.id)}
-                      className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-center"
-                    >
-                      View Details
-                    </button>
-                    <button
-                      onClick={() =>
-                        (window.location.href = `/edit-child/${child.id}`)
-                      }
-                      className="flex-1 px-3 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
-                    >
-                      Edit
-                    </button>
-                    {!child.isSponsored && (
-                      <button className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
-                        Find Sponsor
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => onViewChild(child.id)}
+                        className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-center"
+                      >
+                        View Details
                       </button>
-                    )}
+                      <button
+                        onClick={() =>
+                          (window.location.href = `/edit-child/${child.id}`)
+                        }
+                        className="flex-1 px-3 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
+                      >
+                        Edit
+                      </button>
+                      {!child.isSponsored && (
+                        <button className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
+                          Find Sponsor
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+
+            {/* Pagination */}
+            <Pagination
+              pagination={pagination}
+              onPageChange={handlePageChange}
+              loading={loading}
+            />
           </div>
         ) : (
           /* Empty State */
@@ -960,7 +1016,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
                   Total Children
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {children.length}
+                  {pagination.totalCount}
                 </p>
               </div>
             </div>
@@ -970,9 +1026,12 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
             <div className="flex items-center space-x-3">
               <Heart className="text-green-600" size={24} />
               <div>
-                <p className="text-sm font-medium text-gray-600">Sponsored</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Current Page
+                </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {children.filter((child) => child.isSponsored).length}
+                  {children.filter((child) => child.isSponsored).length}{" "}
+                  Sponsored
                 </p>
               </div>
             </div>
@@ -983,10 +1042,11 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
               <Users className="text-yellow-600" size={24} />
               <div>
                 <p className="text-sm font-medium text-gray-600">
-                  Need Sponsors
+                  Current Page
                 </p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {children.filter((child) => !child.isSponsored).length}
+                  {children.filter((child) => !child.isSponsored).length} Need
+                  Sponsors
                 </p>
               </div>
             </div>
@@ -996,9 +1056,9 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
             <div className="flex items-center space-x-3">
               <GraduationCap className="text-purple-600" size={24} />
               <div>
-                <p className="text-sm font-medium text-gray-600">Schools</p>
+                <p className="text-sm font-medium text-gray-600">Page</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {new Set(children.map((child) => child.school.name)).size}
+                  {pagination.currentPage} of {pagination.totalPages}
                 </p>
               </div>
             </div>
@@ -1014,33 +1074,23 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
               </h3>
               <p className="text-blue-700">
                 Showing{" "}
-                <span className="font-bold">{filteredChildren.length}</span> of{" "}
-                <span className="font-bold">{children.length}</span> children
-                {filteredChildren.length !== children.length && (
-                  <span className="ml-2">
-                    (
-                    {(
-                      (filteredChildren.length / children.length) *
-                      100
-                    ).toFixed(1)}
-                    % of total)
-                  </span>
-                )}
+                <span className="font-bold">{pagination.totalCount}</span>{" "}
+                children matching your filters
               </p>
               <div className="mt-3 flex flex-wrap justify-center gap-2">
                 <span className="text-sm text-blue-600">
-                  Sponsored:{" "}
-                  {filteredChildren.filter((c) => c.isSponsored).length}
+                  Sponsored on current page:{" "}
+                  {children.filter((c) => c.isSponsored).length}
                 </span>
                 <span className="text-blue-400">•</span>
                 <span className="text-sm text-blue-600">
-                  Unsponsored:{" "}
-                  {filteredChildren.filter((c) => !c.isSponsored).length}
+                  Unsponsored on current page:{" "}
+                  {children.filter((c) => !c.isSponsored).length}
                 </span>
                 <span className="text-blue-400">•</span>
                 <span className="text-sm text-blue-600">
-                  Schools:{" "}
-                  {new Set(filteredChildren.map((c) => c.school.name)).size}
+                  Schools on current page:{" "}
+                  {new Set(children.map((c) => c.school.name)).size}
                 </span>
               </div>
             </div>
