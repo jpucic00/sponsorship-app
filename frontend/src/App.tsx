@@ -20,6 +20,8 @@ function App() {
 
   const handleChildSubmit = async (childData: any) => {
     try {
+      console.log("Submitting child data:", childData);
+
       const response = await fetch("/api/children", {
         method: "POST",
         headers: {
@@ -29,20 +31,36 @@ function App() {
       });
 
       if (response.ok) {
-        showNotification("Child registered successfully! 🎉");
+        const result = await response.json();
+        console.log("Child registration result:", result);
+
+        const sponsorStatus = result.isSponsored
+          ? " with sponsor assigned"
+          : " (no sponsor assigned)";
+        showNotification(`Child registered successfully${sponsorStatus}! 🎉`);
         return Promise.resolve();
       } else {
-        throw new Error("Failed to register child");
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
+        console.error("Server error:", errorData);
+        throw new Error(errorData.error || "Failed to register child");
       }
     } catch (error) {
-      showNotification("Error registering child. Please try again.");
-      console.error("Error:", error);
+      console.error("Error registering child:", error);
+      showNotification(
+        `Error registering child: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
       throw error;
     }
   };
 
   const handleSponsorSubmit = async (sponsorData: any) => {
     try {
+      console.log("Submitting sponsor data:", sponsorData);
+
       const response = await fetch("/api/sponsors", {
         method: "POST",
         headers: {
@@ -52,39 +70,76 @@ function App() {
       });
 
       if (response.ok) {
+        const result = await response.json();
+        console.log("Sponsor registration result:", result);
         showNotification("Sponsor registered successfully! 🤝");
       } else {
-        throw new Error("Failed to register sponsor");
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
+        console.error("Server error:", errorData);
+        throw new Error(errorData.error || "Failed to register sponsor");
       }
     } catch (error) {
-      showNotification("Error registering sponsor. Please try again.");
-      console.error("Error:", error);
+      console.error("Error registering sponsor:", error);
+      showNotification(
+        `Error registering sponsor: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   };
 
   const handleExcelImport = async (data: any[]) => {
     try {
+      console.log("Importing Excel data:", data.length, "records");
+
       const results = await Promise.allSettled(
-        data.map((record) =>
-          fetch("/api/children", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(record),
-          })
-        )
+        data.map(async (record, index) => {
+          try {
+            const response = await fetch("/api/children", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(record),
+            });
+
+            if (!response.ok) {
+              const errorData = await response
+                .json()
+                .catch(() => ({ error: "Unknown error" }));
+              throw new Error(
+                `Row ${index + 1}: ${errorData.error || "Failed to import"}`
+              );
+            }
+
+            return await response.json();
+          } catch (error) {
+            console.error(`Error importing row ${index + 1}:`, error);
+            throw error;
+          }
+        })
       );
 
       const successful = results.filter((r) => r.status === "fulfilled").length;
       const failed = results.filter((r) => r.status === "rejected").length;
 
+      console.log("Import results:", { successful, failed });
+
+      if (failed > 0) {
+        console.error(
+          "Failed imports:",
+          results.filter((r) => r.status === "rejected").map((r) => r.reason)
+        );
+      }
+
       showNotification(
         `Import completed! ✨ ${successful} successful, ${failed} failed`
       );
     } catch (error) {
+      console.error("Error importing data:", error);
       showNotification("Error importing data. Please try again.");
-      console.error("Error:", error);
     }
   };
 

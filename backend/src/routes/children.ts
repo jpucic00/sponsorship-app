@@ -47,35 +47,87 @@ router.post('/', async (req, res) => {
       motherContact,
       story,
       comment,
-      photoUrl
+      photoUrl,
+      sponsorId,
+      newSponsor
     } = req.body;
 
-    const child = await prisma.child.create({
-      data: {
-        firstName,
-        lastName,
-        dateOfBirth: new Date(dateOfBirth),
-        gender,
-        schoolId: parseInt(schoolId),
-        class: childClass,
-        fatherFullName,
-        fatherAddress,
-        fatherContact,
-        motherFullName,
-        motherAddress,
-        motherContact,
-        story,
-        comment,
-        photoUrl,
-        dateEnteredRegister: new Date(),
-        lastProfileUpdate: new Date()
-      },
+    // Start a transaction to ensure data consistency
+    const result = await prisma.$transaction(async (tx) => {
+      let finalSponsorId = sponsorId ? parseInt(sponsorId) : null;
+
+      // If we need to create a new sponsor
+      if (newSponsor && newSponsor.fullName) {
+        const createdSponsor = await tx.sponsor.create({
+          data: {
+            fullName: newSponsor.fullName,
+            contact: newSponsor.contact,
+            proxyId: newSponsor.proxyId ? parseInt(newSponsor.proxyId) : null
+          }
+        });
+        finalSponsorId = createdSponsor.id;
+      }
+
+      // Create the child
+      const child = await tx.child.create({
+        data: {
+          firstName,
+          lastName,
+          dateOfBirth: new Date(dateOfBirth),
+          gender,
+          schoolId: parseInt(schoolId),
+          class: childClass,
+          fatherFullName,
+          fatherAddress,
+          fatherContact,
+          motherFullName,
+          motherAddress,
+          motherContact,
+          story,
+          comment,
+          photoUrl,
+          dateEnteredRegister: new Date(),
+          lastProfileUpdate: new Date(),
+          isSponsored: finalSponsorId ? true : false
+        },
+        include: {
+          school: true
+        }
+      });
+
+      // If we have a sponsor, create the sponsorship relationship
+      if (finalSponsorId) {
+        await tx.sponsorship.create({
+          data: {
+            childId: child.id,
+            sponsorId: finalSponsorId,
+            startDate: new Date(),
+            isActive: true
+          }
+        });
+      }
+
+      return child;
+    });
+
+    // Return the complete child data with relationships
+    const completeChild = await prisma.child.findUnique({
+      where: { id: result.id },
       include: {
-        school: true
+        school: true,
+        sponsorship: {
+          include: {
+            sponsor: {
+              include: {
+                proxy: true
+              }
+            }
+          }
+        }
       }
     });
 
-    res.status(201).json(child);
+    res.status(201).json(completeChild);
   } catch (error) {
     console.error('Error creating child:', error);
     res.status(500).json({ error: 'Failed to create child record' });
