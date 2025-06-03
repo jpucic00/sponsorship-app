@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Search,
   Filter,
@@ -13,6 +14,7 @@ import {
   UserCheck,
   School as SchoolIcon,
   Link2,
+  ChevronDown,
 } from "lucide-react";
 
 interface Child {
@@ -68,6 +70,179 @@ interface ChildrenListProps {
   onViewChild: (childId: number) => void;
 }
 
+// Custom Searchable Select Component
+interface SearchableSelectProps {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  onValueChange: (value: string) => void;
+  options: Array<{ value: string; label: string; sublabel?: string }>;
+  searchTerm: string;
+  onSearchChange: (term: string) => void;
+  placeholder: string;
+  emptyMessage: string;
+}
+
+const SearchableSelect: React.FC<SearchableSelectProps> = ({
+  label,
+  icon,
+  value,
+  onValueChange,
+  options,
+  searchTerm,
+  onSearchChange,
+  placeholder,
+  emptyMessage,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const selectedOption = options.find((opt) => opt.value === value);
+
+  // Update position when dropdown opens
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const updatePosition = () => {
+        const rect = buttonRef.current!.getBoundingClientRect();
+        setPosition({
+          top: rect.bottom, // Remove window.scrollY
+          left: rect.left, // Remove window.scrollX
+          width: rect.width,
+        });
+      };
+
+      updatePosition();
+
+      // Update position on scroll/resize
+      const handleUpdate = () => updatePosition();
+      window.addEventListener("scroll", handleUpdate, { passive: true });
+      window.addEventListener("resize", handleUpdate, { passive: true });
+
+      return () => {
+        window.removeEventListener("scroll", handleUpdate);
+        window.removeEventListener("resize", handleUpdate);
+      };
+    }
+  }, [isOpen]);
+
+  // Handle click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isOpen &&
+        buttonRef.current &&
+        dropdownRef.current &&
+        !buttonRef.current.contains(event.target as Node) &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  const filteredOptions = options.filter(
+    (option) =>
+      option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (option.sublabel &&
+        option.sublabel.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const handleSelect = (optionValue: string) => {
+    onValueChange(optionValue);
+    setIsOpen(false);
+    onSearchChange("");
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-semibold text-gray-700">
+        {icon}
+        {label}
+      </label>
+      <div className="relative">
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-sm text-left flex items-center justify-between hover:bg-gray-50"
+        >
+          <span className="truncate">
+            {selectedOption ? selectedOption.label : "All"}
+          </span>
+          <ChevronDown
+            size={14}
+            className={`text-gray-400 flex-shrink-0 ml-2 transition-transform duration-200 ${
+              isOpen ? "transform rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {/* Portal dropdown */}
+        {isOpen &&
+          createPortal(
+            <div
+              ref={dropdownRef}
+              className="fixed bg-white border border-gray-300 rounded-lg shadow-2xl max-h-80 overflow-hidden z-[10000]"
+              style={{
+                top: `${position.top + 4}px`,
+                left: `${position.left}px`,
+                width: `${position.width}px`,
+                minWidth: "200px",
+              }}
+            >
+              <div className="p-3 border-b border-gray-200 bg-gray-50">
+                <div className="relative">
+                  <Search
+                    size={14}
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  />
+                  <input
+                    type="text"
+                    placeholder={placeholder}
+                    value={searchTerm}
+                    onChange={(e) => onSearchChange(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="max-h-60 overflow-y-auto">
+                {filteredOptions.length > 0 ? (
+                  filteredOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      className="w-full px-3 py-3 text-left hover:bg-blue-50 text-sm border-b border-gray-100 last:border-b-0 focus:bg-blue-50 focus:outline-none"
+                      onClick={() => handleSelect(option.value)}
+                    >
+                      <div className="font-medium text-gray-900">
+                        {option.label}
+                      </div>
+                      {option.sublabel && (
+                        <div className="text-gray-500 text-xs mt-1">
+                          {option.sublabel}
+                        </div>
+                      )}
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-4 text-sm text-gray-500 italic text-center">
+                    {emptyMessage}
+                  </div>
+                )}
+              </div>
+            </div>,
+            document.body
+          )}
+      </div>
+    </div>
+  );
+};
+
 export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
   const [children, setChildren] = useState<Child[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
@@ -88,29 +263,9 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
   const [schoolSearchTerm, setSchoolSearchTerm] = useState("");
   const [sponsorSearchTerm, setSponsorSearchTerm] = useState("");
   const [proxySearchTerm, setProxySearchTerm] = useState("");
-  const [showSchoolDropdown, setShowSchoolDropdown] = useState(false);
-  const [showSponsorDropdown, setShowSponsorDropdown] = useState(false);
-  const [showProxyDropdown, setShowProxyDropdown] = useState(false);
 
   useEffect(() => {
     fetchData();
-  }, []);
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (!target.closest(".filter-dropdown")) {
-        setShowSchoolDropdown(false);
-        setShowSponsorDropdown(false);
-        setShowProxyDropdown(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
   }, []);
 
   const fetchData = async () => {
@@ -212,53 +367,9 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
     setFilterSchool("all");
     setFilterSponsor("all");
     setFilterProxy("all");
-    // Clear search terms for filter dropdowns
     setSchoolSearchTerm("");
     setSponsorSearchTerm("");
     setProxySearchTerm("");
-    // Close dropdowns
-    setShowSchoolDropdown(false);
-    setShowSponsorDropdown(false);
-    setShowProxyDropdown(false);
-  };
-
-  // Filter functions for searchable dropdowns
-  const filteredSchools = schools.filter(
-    (school) =>
-      school.name.toLowerCase().includes(schoolSearchTerm.toLowerCase()) ||
-      school.location.toLowerCase().includes(schoolSearchTerm.toLowerCase())
-  );
-
-  const filteredSponsors = sponsors.filter((sponsor) =>
-    sponsor.fullName.toLowerCase().includes(sponsorSearchTerm.toLowerCase())
-  );
-
-  const filteredProxies = proxies.filter(
-    (proxy) =>
-      proxy.fullName.toLowerCase().includes(proxySearchTerm.toLowerCase()) ||
-      proxy.role.toLowerCase().includes(proxySearchTerm.toLowerCase())
-  );
-
-  // Helper functions to get selected item names
-  const getSelectedSchoolName = () => {
-    if (filterSchool === "all") return "All Schools";
-    const school = schools.find((s) => s.id.toString() === filterSchool);
-    return school ? school.name : "All Schools";
-  };
-
-  const getSelectedSponsorName = () => {
-    if (filterSponsor === "all") return "All";
-    if (filterSponsor === "none") return "No Sponsor";
-    const sponsor = sponsors.find((s) => s.id.toString() === filterSponsor);
-    return sponsor ? sponsor.fullName : "All";
-  };
-
-  const getSelectedProxyName = () => {
-    if (filterProxy === "all") return "All";
-    if (filterProxy === "none") return "No Proxy";
-    if (filterProxy === "direct") return "Direct Contact";
-    const proxy = proxies.find((p) => p.id.toString() === filterProxy);
-    return proxy ? `${proxy.fullName} (${proxy.role})` : "All";
   };
 
   const hasActiveFilters =
@@ -279,6 +390,37 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
       filterProxy !== "all" && "proxy",
     ].filter(Boolean).length;
   };
+
+  // Prepare options for searchable selects
+  const schoolOptions = [
+    { value: "all", label: "All Schools" },
+    ...schools.map((school) => ({
+      value: school.id.toString(),
+      label: school.name,
+      sublabel: school.location,
+    })),
+  ];
+
+  const sponsorOptions = [
+    { value: "all", label: "All" },
+    { value: "none", label: "No Sponsor" },
+    ...sponsors.map((sponsor) => ({
+      value: sponsor.id.toString(),
+      label: sponsor.fullName,
+      sublabel: sponsor.proxy ? `via ${sponsor.proxy.fullName}` : undefined,
+    })),
+  ];
+
+  const proxyOptions = [
+    { value: "all", label: "All" },
+    { value: "none", label: "No Proxy" },
+    { value: "direct", label: "Direct Contact" },
+    ...proxies.map((proxy) => ({
+      value: proxy.id.toString(),
+      label: proxy.fullName,
+      sublabel: proxy.role,
+    })),
+  ];
 
   if (loading) {
     return (
@@ -354,23 +496,29 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
 
           {/* Filters Panel */}
           {showFilters && (
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div className="mt-6 pt-6 border-t border-gray-200 relative">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 relative overflow-visible">
                 {/* Sponsorship Status Filter */}
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
                     <Heart size={16} className="inline mr-1" />
                     Sponsorship Status
                   </label>
-                  <select
-                    value={filterSponsored}
-                    onChange={(e) => setFilterSponsored(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/70 text-sm"
-                  >
-                    <option value="all">All Children</option>
-                    <option value="sponsored">Sponsored</option>
-                    <option value="unsponsored">Needs Sponsor</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={filterSponsored}
+                      onChange={(e) => setFilterSponsored(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none pr-8 hover:bg-gray-50"
+                    >
+                      <option value="all">All Children</option>
+                      <option value="sponsored">Sponsored</option>
+                      <option value="unsponsored">Needs Sponsor</option>
+                    </select>
+                    <ChevronDown
+                      size={14}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+                    />
+                  </div>
                 </div>
 
                 {/* Gender Filter */}
@@ -379,301 +527,61 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
                     <Users size={16} className="inline mr-1" />
                     Gender
                   </label>
-                  <select
-                    value={filterGender}
-                    onChange={(e) => setFilterGender(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/70 text-sm"
-                  >
-                    <option value="all">All</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={filterGender}
+                      onChange={(e) => setFilterGender(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none pr-8 hover:bg-gray-50"
+                    >
+                      <option value="all">All</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </select>
+                    <ChevronDown
+                      size={14}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+                    />
+                  </div>
                 </div>
 
                 {/* School Filter with Search */}
-                <div className="space-y-2 relative">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    <SchoolIcon size={16} className="inline mr-1" />
-                    School
-                  </label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowSchoolDropdown(!showSchoolDropdown);
-                        setShowSponsorDropdown(false);
-                        setShowProxyDropdown(false);
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-sm text-left flex items-center justify-between"
-                    >
-                      <span className="truncate">
-                        {getSelectedSchoolName()}
-                      </span>
-                      <Search
-                        size={14}
-                        className="text-gray-400 flex-shrink-0 ml-2"
-                      />
-                    </button>
-
-                    {showSchoolDropdown && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
-                        <div className="p-2 border-b border-gray-200">
-                          <div className="relative">
-                            <Search
-                              size={14}
-                              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Search schools..."
-                              value={schoolSearchTerm}
-                              onChange={(e) =>
-                                setSchoolSearchTerm(e.target.value)
-                              }
-                              className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                        </div>
-                        <div className="max-h-40 overflow-y-auto">
-                          <button
-                            className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100"
-                            onClick={() => {
-                              setFilterSchool("all");
-                              setShowSchoolDropdown(false);
-                              setSchoolSearchTerm("");
-                            }}
-                          >
-                            All Schools
-                          </button>
-                          {filteredSchools.map((school) => (
-                            <button
-                              key={school.id}
-                              className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100"
-                              onClick={() => {
-                                setFilterSchool(school.id.toString());
-                                setShowSchoolDropdown(false);
-                                setSchoolSearchTerm("");
-                              }}
-                            >
-                              <div className="font-medium">{school.name}</div>
-                              <div className="text-gray-500 text-xs">
-                                {school.location}
-                              </div>
-                            </button>
-                          ))}
-                          {filteredSchools.length === 0 && schoolSearchTerm && (
-                            <div className="px-3 py-2 text-sm text-gray-500 italic">
-                              No schools found matching "{schoolSearchTerm}"
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <SearchableSelect
+                  label="School"
+                  icon={<SchoolIcon size={16} className="inline mr-1" />}
+                  value={filterSchool}
+                  onValueChange={setFilterSchool}
+                  options={schoolOptions}
+                  searchTerm={schoolSearchTerm}
+                  onSearchChange={setSchoolSearchTerm}
+                  placeholder="Search schools..."
+                  emptyMessage={`No schools found matching "${schoolSearchTerm}"`}
+                />
 
                 {/* Sponsor Filter with Search */}
-                <div className="space-y-2 relative">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    <UserCheck size={16} className="inline mr-1" />
-                    Sponsor
-                  </label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowSponsorDropdown(!showSponsorDropdown);
-                        setShowSchoolDropdown(false);
-                        setShowProxyDropdown(false);
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-sm text-left flex items-center justify-between"
-                    >
-                      <span className="truncate">
-                        {getSelectedSponsorName()}
-                      </span>
-                      <Search
-                        size={14}
-                        className="text-gray-400 flex-shrink-0 ml-2"
-                      />
-                    </button>
-
-                    {showSponsorDropdown && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
-                        <div className="p-2 border-b border-gray-200">
-                          <div className="relative">
-                            <Search
-                              size={14}
-                              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Search sponsors..."
-                              value={sponsorSearchTerm}
-                              onChange={(e) =>
-                                setSponsorSearchTerm(e.target.value)
-                              }
-                              className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                        </div>
-                        <div className="max-h-40 overflow-y-auto">
-                          <button
-                            className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100"
-                            onClick={() => {
-                              setFilterSponsor("all");
-                              setShowSponsorDropdown(false);
-                              setSponsorSearchTerm("");
-                            }}
-                          >
-                            All
-                          </button>
-                          <button
-                            className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100"
-                            onClick={() => {
-                              setFilterSponsor("none");
-                              setShowSponsorDropdown(false);
-                              setSponsorSearchTerm("");
-                            }}
-                          >
-                            No Sponsor
-                          </button>
-                          {filteredSponsors.map((sponsor) => (
-                            <button
-                              key={sponsor.id}
-                              className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100"
-                              onClick={() => {
-                                setFilterSponsor(sponsor.id.toString());
-                                setShowSponsorDropdown(false);
-                                setSponsorSearchTerm("");
-                              }}
-                            >
-                              <div className="font-medium">
-                                {sponsor.fullName}
-                              </div>
-                              {sponsor.proxy && (
-                                <div className="text-purple-600 text-xs">
-                                  via {sponsor.proxy.fullName} (
-                                  {sponsor.proxy.role})
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                          {filteredSponsors.length === 0 &&
-                            sponsorSearchTerm && (
-                              <div className="px-3 py-2 text-sm text-gray-500 italic">
-                                No sponsors found matching "{sponsorSearchTerm}"
-                              </div>
-                            )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <SearchableSelect
+                  label="Sponsor"
+                  icon={<UserCheck size={16} className="inline mr-1" />}
+                  value={filterSponsor}
+                  onValueChange={setFilterSponsor}
+                  options={sponsorOptions}
+                  searchTerm={sponsorSearchTerm}
+                  onSearchChange={setSponsorSearchTerm}
+                  placeholder="Search sponsors..."
+                  emptyMessage={`No sponsors found matching "${sponsorSearchTerm}"`}
+                />
 
                 {/* Proxy Filter with Search */}
-                <div className="space-y-2 relative">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    <Link2 size={16} className="inline mr-1" />
-                    Proxy/Middleman
-                  </label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowProxyDropdown(!showProxyDropdown);
-                        setShowSchoolDropdown(false);
-                        setShowSponsorDropdown(false);
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-sm text-left flex items-center justify-between"
-                    >
-                      <span className="truncate">{getSelectedProxyName()}</span>
-                      <Search
-                        size={14}
-                        className="text-gray-400 flex-shrink-0 ml-2"
-                      />
-                    </button>
-
-                    {showProxyDropdown && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
-                        <div className="p-2 border-b border-gray-200">
-                          <div className="relative">
-                            <Search
-                              size={14}
-                              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Search proxies..."
-                              value={proxySearchTerm}
-                              onChange={(e) =>
-                                setProxySearchTerm(e.target.value)
-                              }
-                              className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                        </div>
-                        <div className="max-h-40 overflow-y-auto">
-                          <button
-                            className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100"
-                            onClick={() => {
-                              setFilterProxy("all");
-                              setShowProxyDropdown(false);
-                              setProxySearchTerm("");
-                            }}
-                          >
-                            All
-                          </button>
-                          <button
-                            className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100"
-                            onClick={() => {
-                              setFilterProxy("none");
-                              setShowProxyDropdown(false);
-                              setProxySearchTerm("");
-                            }}
-                          >
-                            No Proxy
-                          </button>
-                          <button
-                            className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100"
-                            onClick={() => {
-                              setFilterProxy("direct");
-                              setShowProxyDropdown(false);
-                              setProxySearchTerm("");
-                            }}
-                          >
-                            Direct Contact
-                          </button>
-                          {filteredProxies.map((proxy) => (
-                            <button
-                              key={proxy.id}
-                              className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100"
-                              onClick={() => {
-                                setFilterProxy(proxy.id.toString());
-                                setShowProxyDropdown(false);
-                                setProxySearchTerm("");
-                              }}
-                            >
-                              <div className="font-medium">
-                                {proxy.fullName}
-                              </div>
-                              <div className="text-gray-500 text-xs">
-                                {proxy.role}
-                              </div>
-                            </button>
-                          ))}
-                          {filteredProxies.length === 0 && proxySearchTerm && (
-                            <div className="px-3 py-2 text-sm text-gray-500 italic">
-                              No proxies found matching "{proxySearchTerm}"
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <SearchableSelect
+                  label="Proxy/Middleman"
+                  icon={<Link2 size={16} className="inline mr-1" />}
+                  value={filterProxy}
+                  onValueChange={setFilterProxy}
+                  options={proxyOptions}
+                  searchTerm={proxySearchTerm}
+                  onSearchChange={setProxySearchTerm}
+                  placeholder="Search proxies..."
+                  emptyMessage={`No proxies found matching "${proxySearchTerm}"`}
+                />
 
                 {/* Clear Filters Button */}
                 <div className="flex items-end">
