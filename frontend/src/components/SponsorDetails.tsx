@@ -19,6 +19,12 @@ import {
   User,
   GraduationCap,
 } from "lucide-react";
+// Import the date utility functions
+import {
+  formatDateTime,
+  formatDate,
+  formatDateTimeWithRelative,
+} from "../utils/dateUtils";
 
 interface Sponsor {
   id: number;
@@ -104,39 +110,11 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
     return age;
   };
 
-  const parseContactInfo = (contact: string) => {
-    const lines = contact.split("\n").filter((line) => line.trim());
-    const parsed = {
-      phone: "",
-      email: "",
-      address: "",
-      other: [] as string[],
-    };
-
-    lines.forEach((line) => {
-      const trimmed = line.trim();
-      if (trimmed.includes("@")) {
-        parsed.email = trimmed;
-      } else if (trimmed.match(/^\+?[\d\s\-\(\)]+$/)) {
-        parsed.phone = trimmed;
-      } else if (
-        trimmed.toLowerCase().includes("address") ||
-        trimmed.includes(",")
-      ) {
-        parsed.address = trimmed;
-      } else {
-        parsed.other.push(trimmed);
-      }
-    });
-
-    return parsed;
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex justify-center items-center">
         <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-200 border-t-green-600"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
           <p className="text-gray-600 font-medium">
             Loading sponsor details...
           </p>
@@ -157,7 +135,7 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
           </p>
           <button
             onClick={onBack}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Back to Sponsors List
           </button>
@@ -166,7 +144,8 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
     );
   }
 
-  const contactInfo = parseContactInfo(sponsor.contact);
+  const activeSponsors = sponsor.sponsorships.filter((s) => s.isActive);
+  const inactiveSponsors = sponsor.sponsorships.filter((s) => !s.isActive);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
@@ -175,7 +154,7 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
         <div className="mb-8">
           <button
             onClick={onBack}
-            className="flex items-center space-x-2 text-green-600 hover:text-green-800 font-medium mb-4 transition-colors"
+            className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 font-medium mb-4 transition-colors"
           >
             <ArrowLeft size={20} />
             <span>Back to Sponsors List</span>
@@ -187,13 +166,15 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
                 {sponsor.fullName}
               </h1>
               <div className="flex items-center space-x-4">
-                <span className="inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
-                  ✅ Active Sponsor
+                <span className="bg-green-100 text-green-800 px-3 py-1 text-sm font-semibold rounded-full">
+                  {activeSponsors.length} Active Sponsorship
+                  {activeSponsors.length !== 1 ? "s" : ""}
                 </span>
-                <span className="text-gray-600">
-                  {sponsor.sponsorships.length} active sponsorship
-                  {sponsor.sponsorships.length !== 1 ? "s" : ""}
-                </span>
+                {sponsor.proxy && (
+                  <span className="bg-purple-100 text-purple-800 px-3 py-1 text-sm font-semibold rounded-full">
+                    Via {sponsor.proxy.role}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -201,7 +182,7 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
               onClick={() =>
                 (window.location.href = `/edit-sponsor/${sponsor.id}`)
               }
-              className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
+              className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
             >
               <Edit size={20} />
               <span>Edit Details</span>
@@ -212,227 +193,228 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
-            {/* Contact Information */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-              <div className="flex items-center space-x-3 mb-6">
-                <Phone className="text-blue-600" size={28} />
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Contact Information
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {contactInfo.phone && (
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Phone className="text-blue-600" size={18} />
-                      <span className="font-semibold text-blue-700">Phone</span>
-                    </div>
-                    <p className="text-gray-900 font-medium">
-                      {contactInfo.phone}
-                    </p>
-                  </div>
-                )}
-
-                {contactInfo.email && (
-                  <div className="bg-purple-50 p-4 rounded-xl border border-purple-200">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Mail className="text-purple-600" size={18} />
-                      <span className="font-semibold text-purple-700">
-                        Email
-                      </span>
-                    </div>
-                    <p className="text-gray-900 font-medium break-words">
-                      {contactInfo.email}
-                    </p>
-                  </div>
-                )}
-
-                {contactInfo.address && (
-                  <div className="bg-green-50 p-4 rounded-xl border border-green-200 md:col-span-2">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Home className="text-green-600" size={18} />
-                      <span className="font-semibold text-green-700">
-                        Address
-                      </span>
-                    </div>
-                    <p className="text-gray-900 font-medium">
-                      {contactInfo.address}
-                    </p>
-                  </div>
-                )}
-
-                {contactInfo.other.length > 0 && (
-                  <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 md:col-span-2">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <FileText className="text-orange-600" size={18} />
-                      <span className="font-semibold text-orange-700">
-                        Other Contact Info
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      {contactInfo.other.map((info, index) => (
-                        <p key={index} className="text-gray-900 font-medium">
-                          {info}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Raw Contact Display as Fallback */}
-              <div className="mt-6 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <div className="flex items-center space-x-2 mb-2">
-                  <FileText className="text-gray-600" size={18} />
-                  <span className="font-semibold text-gray-700">
-                    Complete Contact Information
-                  </span>
-                </div>
-                <div className="text-gray-800 whitespace-pre-line font-mono text-sm bg-white p-3 rounded-lg">
-                  {sponsor.contact}
-                </div>
-              </div>
-            </div>
-
-            {/* Sponsored Children */}
-            {sponsor.sponsorships.length > 0 && (
+            {/* Active Sponsorships */}
+            {activeSponsors.length > 0 && (
               <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
                 <div className="flex items-center space-x-3 mb-6">
                   <Heart className="text-red-500" size={28} />
                   <h2 className="text-2xl font-bold text-gray-900">
-                    Sponsored Children ({sponsor.sponsorships.length})
+                    Active Sponsorships ({activeSponsors.length})
+                  </h2>
+                </div>
+
+                <div className="space-y-6">
+                  {activeSponsors.map((sponsorship) => (
+                    <div
+                      key={sponsorship.id}
+                      className="bg-green-50 rounded-2xl p-6 border border-green-200"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-3">
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold">
+                              {sponsorship.child.firstName[0]}
+                              {sponsorship.child.lastName[0]}
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-bold text-gray-900">
+                                {sponsorship.child.firstName}{" "}
+                                {sponsorship.child.lastName}
+                              </h3>
+                              <p className="text-gray-600">
+                                {calculateAge(sponsorship.child.dateOfBirth)}{" "}
+                                years old • {sponsorship.child.gender} •{" "}
+                                {sponsorship.child.class}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-white p-4 rounded-xl border border-green-200">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Calendar
+                                  className="text-green-600"
+                                  size={18}
+                                />
+                                <span className="font-semibold text-green-700">
+                                  Sponsorship Start
+                                </span>
+                              </div>
+                              {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
+                              <div className="space-y-1">
+                                <p className="text-gray-900 font-medium">
+                                  {formatDateTime(sponsorship.startDate)}
+                                </p>
+                                <p className="text-gray-600 text-sm">
+                                  {
+                                    formatDateTimeWithRelative(
+                                      sponsorship.startDate
+                                    ).relative
+                                  }
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="bg-white p-4 rounded-xl border border-green-200">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <GraduationCap
+                                  className="text-green-600"
+                                  size={18}
+                                />
+                                <span className="font-semibold text-green-700">
+                                  School
+                                </span>
+                              </div>
+                              <p className="text-gray-900 font-medium">
+                                {sponsorship.child.school.name}
+                              </p>
+                              <div className="flex items-center space-x-1 mt-1">
+                                <MapPin className="text-gray-500" size={14} />
+                                <p className="text-gray-600 text-sm">
+                                  {sponsorship.child.school.location}
+                                </p>
+                              </div>
+                            </div>
+
+                            {sponsorship.monthlyAmount && (
+                              <div className="bg-white p-4 rounded-xl border border-green-200">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <DollarSign
+                                    className="text-green-600"
+                                    size={18}
+                                  />
+                                  <span className="font-semibold text-green-700">
+                                    Monthly Amount
+                                  </span>
+                                </div>
+                                <p className="text-gray-900 font-bold text-lg">
+                                  ${sponsorship.monthlyAmount}
+                                </p>
+                                {sponsorship.paymentMethod && (
+                                  <p className="text-gray-600 text-sm">
+                                    via {sponsorship.paymentMethod}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {sponsorship.notes && (
+                              <div className="bg-white p-4 rounded-xl border border-green-200">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <FileText
+                                    className="text-green-600"
+                                    size={18}
+                                  />
+                                  <span className="font-semibold text-green-700">
+                                    Notes
+                                  </span>
+                                </div>
+                                <p className="text-gray-800 text-sm">
+                                  {sponsorship.notes}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Previous Sponsorships */}
+            {inactiveSponsors.length > 0 && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+                <div className="flex items-center space-x-3 mb-6">
+                  <Users className="text-gray-600" size={28} />
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Previous Sponsorships ({inactiveSponsors.length})
                   </h2>
                 </div>
 
                 <div className="space-y-4">
-                  {sponsor.sponsorships.map((sponsorship) => (
+                  {inactiveSponsors.map((sponsorship) => (
                     <div
                       key={sponsorship.id}
-                      className="bg-gradient-to-r from-red-50 to-pink-50 rounded-2xl p-6 border border-red-200"
+                      className="bg-gray-50 rounded-xl p-4 border border-gray-200"
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-2xl flex items-center justify-center text-white font-bold text-lg">
-                            {sponsorship.child.firstName[0]}
-                            {sponsorship.child.lastName[0]}
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-bold text-gray-900">
-                              {sponsorship.child.firstName}{" "}
-                              {sponsorship.child.lastName}
-                            </h3>
-                            <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                              <span>
-                                {calculateAge(sponsorship.child.dateOfBirth)}{" "}
-                                years old
-                              </span>
-                              <span>•</span>
-                              <span>{sponsorship.child.gender}</span>
-                              <span>•</span>
-                              <span>{sponsorship.child.class}</span>
-                            </div>
-                            <div className="flex items-center space-x-2 mt-2">
-                              <GraduationCap
-                                className="text-blue-500"
-                                size={16}
-                              />
-                              <span className="text-sm text-gray-700 font-medium">
-                                {sponsorship.child.school.name},{" "}
-                                {sponsorship.child.school.location}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <span
-                            className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${
-                              sponsorship.isActive
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {sponsorship.isActive ? "✅ Active" : "⏸️ Inactive"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                        <div className="bg-white p-3 rounded-lg border border-red-200">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <Calendar className="text-red-600" size={16} />
-                            <span className="text-sm font-semibold text-red-700">
-                              Start Date
-                            </span>
-                          </div>
-                          <p className="text-gray-900 font-medium">
-                            {new Date(
-                              sponsorship.startDate
-                            ).toLocaleDateString()}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-bold text-gray-900">
+                            {sponsorship.child.firstName}{" "}
+                            {sponsorship.child.lastName}
+                          </h4>
+                          {/* USING formatDateTime utility function */}
+                          <p className="text-sm text-gray-600">
+                            {formatDateTime(sponsorship.startDate)} - Ended
                           </p>
                         </div>
-
                         {sponsorship.monthlyAmount && (
-                          <div className="bg-white p-3 rounded-lg border border-red-200">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <DollarSign className="text-red-600" size={16} />
-                              <span className="text-sm font-semibold text-red-700">
-                                Monthly Amount
-                              </span>
-                            </div>
-                            <p className="text-gray-900 font-bold">
-                              ${sponsorship.monthlyAmount}
-                            </p>
-                          </div>
-                        )}
-
-                        {sponsorship.paymentMethod && (
-                          <div className="bg-white p-3 rounded-lg border border-red-200">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <CreditCard className="text-red-600" size={16} />
-                              <span className="text-sm font-semibold text-red-700">
-                                Payment Method
-                              </span>
-                            </div>
-                            <p className="text-gray-900 font-medium">
-                              {sponsorship.paymentMethod}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {sponsorship.notes && (
-                        <div className="mt-4 bg-white p-3 rounded-lg border border-red-200">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <FileText className="text-red-600" size={16} />
-                            <span className="text-sm font-semibold text-red-700">
-                              Notes
-                            </span>
-                          </div>
-                          <p className="text-gray-800 text-sm">
-                            {sponsorship.notes}
+                          <p className="text-gray-700 font-medium">
+                            ${sponsorship.monthlyAmount}/month
                           </p>
-                        </div>
-                      )}
-
-                      <div className="mt-4 flex space-x-2">
-                        <button
-                          onClick={() =>
-                            (window.location.href = `/children/${sponsorship.child.id}`)
-                          }
-                          className="flex items-center space-x-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          <User size={14} />
-                          <span>View Child</span>
-                        </button>
-                        <button className="flex items-center space-x-1 px-4 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
-                          <Edit size={14} />
-                          <span>Edit Sponsorship</span>
-                        </button>
+                        )}
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Proxy Information */}
+            {sponsor.proxy && (
+              <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+                <div className="flex items-center space-x-3 mb-6">
+                  <Link2 className="text-purple-600" size={28} />
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Proxy Representative
+                  </h2>
+                </div>
+
+                <div className="bg-purple-50 rounded-2xl p-6 border border-purple-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex items-center space-x-2 mb-2">
+                        <User className="text-purple-600" size={18} />
+                        <span className="font-semibold text-purple-700">
+                          Representative
+                        </span>
+                      </div>
+                      <p className="text-gray-900 font-bold">
+                        {sponsor.proxy.fullName}
+                      </p>
+                      <p className="text-purple-600 text-sm mt-1">
+                        {sponsor.proxy.role}
+                      </p>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Phone className="text-purple-600" size={18} />
+                        <span className="font-semibold text-purple-700">
+                          Contact
+                        </span>
+                      </div>
+                      <p className="text-gray-900 text-sm break-words">
+                        {sponsor.proxy.contact}
+                      </p>
+                    </div>
+
+                    {sponsor.proxy.description && (
+                      <div className="md:col-span-2">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <FileText className="text-purple-600" size={18} />
+                          <span className="font-semibold text-purple-700">
+                            Description
+                          </span>
+                        </div>
+                        <p className="text-gray-800 text-sm">
+                          {sponsor.proxy.description}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -440,158 +422,94 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
 
           {/* Sidebar */}
           <div className="space-y-8">
-            {/* Proxy Information */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-              <div className="flex items-center space-x-3 mb-6">
-                <Link2 className="text-purple-600" size={28} />
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Proxy/Middleman
-                </h2>
-              </div>
+            {/* Quick Stats */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                Quick Overview
+              </h3>
 
-              {sponsor.proxy ? (
-                <div className="space-y-4">
-                  <div className="bg-purple-50 p-4 rounded-xl border border-purple-200">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <UserCheck className="text-purple-600" size={18} />
-                      <span className="font-semibold text-purple-700">
-                        Name
-                      </span>
-                    </div>
-                    <p className="text-gray-900 font-bold">
-                      {sponsor.proxy.fullName}
-                    </p>
+              <div className="space-y-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-blue-600 mb-1">
+                    {activeSponsors.length}
                   </div>
-
-                  <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-200">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Users className="text-indigo-600" size={18} />
-                      <span className="font-semibold text-indigo-700">
-                        Role
-                      </span>
-                    </div>
-                    <p className="text-gray-900 font-medium">
-                      {sponsor.proxy.role}
-                    </p>
-                  </div>
-
-                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Phone className="text-blue-600" size={18} />
-                      <span className="font-semibold text-blue-700">
-                        Contact
-                      </span>
-                    </div>
-                    <p className="text-gray-900 text-sm break-words font-mono bg-white p-2 rounded">
-                      {sponsor.proxy.contact}
-                    </p>
-                  </div>
-
-                  {sponsor.proxy.description && (
-                    <div className="bg-green-50 p-4 rounded-xl border border-green-200">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <FileText className="text-green-600" size={18} />
-                        <span className="font-semibold text-green-700">
-                          Description
-                        </span>
-                      </div>
-                      <p className="text-gray-800 text-sm">
-                        {sponsor.proxy.description}
-                      </p>
-                    </div>
-                  )}
-
-                  <button className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all">
-                    View Proxy Details
-                  </button>
+                  <p className="text-gray-600 text-sm">Active Sponsorships</p>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="text-6xl mb-4">🤝</div>
-                  <p className="text-gray-600 mb-4 font-medium">
-                    Direct Contact
-                  </p>
-                  <p className="text-gray-500 text-sm">
-                    This sponsor works directly without a middleman
-                  </p>
-                </div>
-              )}
-            </div>
 
-            {/* Sponsorship Summary */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-              <div className="flex items-center space-x-3 mb-6">
-                <Heart className="text-red-500" size={28} />
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Sponsorship Summary
-                </h2>
-              </div>
-
-              <div className="space-y-4">
-                <div className="bg-red-50 p-4 rounded-xl border border-red-200">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Users className="text-red-600" size={18} />
-                    <span className="font-semibold text-red-700">
-                      Total Children
-                    </span>
-                  </div>
-                  <p className="text-2xl font-bold text-gray-900">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-600 mb-1">
                     {sponsor.sponsorships.length}
-                  </p>
+                  </div>
+                  <p className="text-gray-600 text-sm">Total Sponsorships</p>
                 </div>
 
-                <div className="bg-green-50 p-4 rounded-xl border border-green-200">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <DollarSign className="text-green-600" size={18} />
-                    <span className="font-semibold text-green-700">
-                      Total Monthly
-                    </span>
+                <div className="text-center">
+                  {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
+                  <div className="space-y-1">
+                    <p className="text-lg font-bold text-gray-900">
+                      {formatDateTime(sponsor.createdAt)}
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      {formatDateTimeWithRelative(sponsor.createdAt).relative}
+                    </p>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    $
-                    {sponsor.sponsorships.reduce(
-                      (sum, s) => sum + (s.monthlyAmount || 0),
-                      0
-                    )}
-                  </p>
-                </div>
-
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Calendar className="text-blue-600" size={18} />
-                    <span className="font-semibold text-blue-700">
-                      Sponsor Since
-                    </span>
-                  </div>
-                  <p className="text-lg font-bold text-gray-900">
-                    {new Date(sponsor.createdAt).toLocaleDateString()}
-                  </p>
+                  <p className="text-gray-600 text-sm">Member Since</p>
                 </div>
               </div>
             </div>
 
-            {/* Registration Info */}
+            {/* Contact Information */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <Phone className="text-blue-600" size={20} />
+                <h3 className="text-lg font-bold text-gray-900">
+                  Contact Information
+                </h3>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <span className="font-medium text-gray-700">Contact:</span>
+                  <p className="text-gray-900 break-words">{sponsor.contact}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Info */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
               <div className="flex items-center space-x-3 mb-4">
                 <Clock className="text-gray-600" size={20} />
                 <h3 className="text-lg font-bold text-gray-900">
-                  Registration Info
+                  Account Information
                 </h3>
               </div>
+
               <div className="space-y-3 text-sm">
                 <div>
                   <span className="font-medium text-gray-700">Registered:</span>
-                  <p className="text-gray-900">
-                    {new Date(sponsor.createdAt).toLocaleString()}
-                  </p>
+                  <div className="mt-1">
+                    {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
+                    <p className="text-gray-900 font-medium">
+                      {formatDateTime(sponsor.createdAt)}
+                    </p>
+                    <p className="text-gray-600 text-xs">
+                      {formatDateTimeWithRelative(sponsor.createdAt).relative}
+                    </p>
+                  </div>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">
                     Last Updated:
                   </span>
-                  <p className="text-gray-900">
-                    {new Date(sponsor.updatedAt).toLocaleString()}
-                  </p>
+                  <div className="mt-1">
+                    {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
+                    <p className="text-gray-900 font-medium">
+                      {formatDateTime(sponsor.updatedAt)}
+                    </p>
+                    <p className="text-gray-600 text-xs">
+                      {formatDateTimeWithRelative(sponsor.updatedAt).relative}
+                    </p>
+                  </div>
                 </div>
                 <div>
                   <span className="font-medium text-gray-700">Sponsor ID:</span>

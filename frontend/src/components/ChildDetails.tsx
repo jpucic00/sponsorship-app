@@ -1,3 +1,4 @@
+// File: src/components/ChildDetails.tsx
 import React, { useState, useEffect } from "react";
 import {
   ArrowLeft,
@@ -19,6 +20,12 @@ import {
   DollarSign,
   CreditCard,
 } from "lucide-react";
+// Import the date utility functions
+import {
+  formatDateTime,
+  formatDate,
+  formatDateTimeWithRelative,
+} from "../utils/dateUtils";
 
 interface Child {
   id: number;
@@ -104,7 +111,6 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
       const response = await fetch("/api/sponsors");
       if (response.ok) {
         const data = await response.json();
-        // Handle both paginated and non-paginated responses
         setAvailableSponsors(data.data || data || []);
       }
     } catch (error) {
@@ -286,8 +292,9 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                           Date of Birth
                         </span>
                       </div>
+                      {/* USING formatDate utility function */}
                       <p className="text-gray-900">
-                        {new Date(child.dateOfBirth).toLocaleDateString()}
+                        {formatDate(child.dateOfBirth)}
                         <span className="text-gray-600 ml-2">
                           ({calculateAge(child.dateOfBirth)} years old)
                         </span>
@@ -329,11 +336,19 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                           Registered
                         </span>
                       </div>
-                      <p className="text-gray-900">
-                        {new Date(
-                          child.dateEnteredRegister
-                        ).toLocaleDateString()}
-                      </p>
+                      {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
+                      <div className="space-y-1">
+                        <p className="text-gray-900 font-medium">
+                          {formatDateTime(child.dateEnteredRegister)}
+                        </p>
+                        <p className="text-gray-500 text-sm">
+                          {
+                            formatDateTimeWithRelative(
+                              child.dateEnteredRegister
+                            ).relative
+                          }
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -505,11 +520,19 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                               Since
                             </span>
                           </div>
-                          <p className="text-gray-900">
-                            {new Date(
-                              sponsorship.startDate
-                            ).toLocaleDateString()}
-                          </p>
+                          {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
+                          <div className="space-y-1">
+                            <p className="text-gray-900 font-medium">
+                              {formatDateTime(sponsorship.startDate)}
+                            </p>
+                            <p className="text-gray-600 text-sm">
+                              {
+                                formatDateTimeWithRelative(
+                                  sponsorship.startDate
+                                ).relative
+                              }
+                            </p>
+                          </div>
                         </div>
 
                         {sponsorship.monthlyAmount && (
@@ -593,11 +616,11 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                         <p className="font-medium text-gray-900">
                           {sponsorship.sponsor.fullName}
                         </p>
+                        {/* USING formatDateTime utility function */}
                         <p className="text-sm text-gray-600">
-                          {new Date(sponsorship.startDate).toLocaleDateString()}{" "}
-                          -{" "}
+                          {formatDateTime(sponsorship.startDate)} -{" "}
                           {sponsorship.endDate
-                            ? new Date(sponsorship.endDate).toLocaleDateString()
+                            ? formatDateTime(sponsorship.endDate)
                             : "Ended"}
                         </p>
                       </div>
@@ -615,9 +638,15 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                   Last Updated
                 </h3>
               </div>
-              <p className="text-gray-700">
-                {new Date(child.lastProfileUpdate).toLocaleDateString()}
-              </p>
+              {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
+              <div className="space-y-2">
+                <div className="text-gray-700 font-medium">
+                  {formatDateTime(child.lastProfileUpdate)}
+                </div>
+                <div className="text-gray-500 text-sm">
+                  {formatDateTimeWithRelative(child.lastProfileUpdate).relative}
+                </div>
+              </div>
             </div>
           </div>
         </div>

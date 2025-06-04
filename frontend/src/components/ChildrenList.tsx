@@ -17,6 +17,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { Pagination } from "./Pagination";
+// Import the date utility functions
+import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface Child {
   id: number;
@@ -816,10 +818,18 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
 
                         {/* Registration Date */}
                         <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">
-                            {new Date(
-                              child.dateEnteredRegister
-                            ).toLocaleDateString()}
+                          {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium text-gray-900">
+                              {formatDateTime(child.dateEnteredRegister)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {
+                                formatDateTimeWithRelative(
+                                  child.dateEnteredRegister
+                                ).relative
+                              }
+                            </div>
                           </div>
                         </td>
 
@@ -861,7 +871,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
                 {children.map((child) => (
                   <div
                     key={child.id}
-                    className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6"
+                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center space-x-3">
@@ -901,12 +911,20 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
                       </div>
                       <div className="flex items-center space-x-2 text-sm text-gray-600">
                         <Calendar size={16} />
-                        <span>
-                          Registered:{" "}
-                          {new Date(
-                            child.dateEnteredRegister
-                          ).toLocaleDateString()}
-                        </span>
+                        <div>
+                          <span>Registered: </span>
+                          {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
+                          <span className="font-medium">
+                            {formatDateTime(child.dateEnteredRegister)}
+                          </span>
+                          <div className="text-xs text-gray-500">
+                            {
+                              formatDateTimeWithRelative(
+                                child.dateEnteredRegister
+                              ).relative
+                            }
+                          </div>
+                        </div>
                       </div>
                       {child.isSponsored && child.sponsorships.length > 0 && (
                         <div className="space-y-1">
@@ -980,7 +998,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
             </h3>
             <p className="text-gray-600 mb-8 text-lg max-w-md mx-auto">
               {hasActiveFilters
-                ? "Try adjusting your filters to see more results."
+                ? "Try adjusting your search terms to see more results."
                 : "Get started by adding your first child to the system."}
             </p>
 
