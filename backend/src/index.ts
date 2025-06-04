@@ -5,13 +5,14 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 
-// Import route modules directly (no .js extensions in CommonJS)
+// Import route modules
 import childrenRoutes from './routes/children';
 import sponsorsRoutes from './routes/sponsors';
 import sponsorshipsRoutes from './routes/sponsorships';
 import volunteersRoutes from './routes/volunteers';
 import schoolsRoutes from './routes/schools';
 import proxiesRoutes from './routes/proxies';
+import childPhotosRoutes from './routes/child-photos'; // New photo routes
 
 dotenv.config();
 
@@ -25,7 +26,8 @@ app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173'
 }));
 app.use(morgan('combined'));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Increase limit for base64 images
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Routes
 app.use('/api/children', childrenRoutes);
@@ -34,6 +36,7 @@ app.use('/api/sponsorships', sponsorshipsRoutes);
 app.use('/api/volunteers', volunteersRoutes);
 app.use('/api/schools', schoolsRoutes);
 app.use('/api/proxies', proxiesRoutes);
+app.use('/api/child-photos', childPhotosRoutes); // Photo gallery routes
 
 // Health check
 app.get('/api/health', (req, res) => {

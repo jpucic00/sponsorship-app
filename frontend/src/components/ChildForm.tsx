@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { ChevronRight, ChevronLeft, Check } from "lucide-react";
+import { ChevronRight, ChevronLeft, Check, FileText } from "lucide-react";
 import { FormProgressSteps } from "./FormProgressSteps";
 import { BasicInfoStep } from "./BasicInfoStep";
 import { FamilyInfoStep } from "./FamilyInfoStep";
 import { SponsorSelectionStep } from "./SponsorSelectionStep";
-import { AdditionalDetailsStep } from "./AdditionalDetailsStep";
 import { FormSummaryCard } from "./FormSummaryCard";
+import { ImageUpload } from "./ImageUpload";
 
 interface School {
   id: number;
@@ -67,7 +67,11 @@ export const ChildForm: React.FC<ChildFormProps> = ({
     motherContact: "",
     story: "",
     comment: "",
-    photoUrl: "",
+    // Only keep image fields, remove photoUrl
+    photoBase64: "",
+    photoMimeType: "",
+    photoFileName: "",
+    photoSize: 0,
     ...initialData,
   });
 
@@ -118,6 +122,33 @@ export const ChildForm: React.FC<ChildFormProps> = ({
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const handleImageChange = (
+    imageData: {
+      base64?: string;
+      mimeType?: string;
+      fileName?: string;
+      size?: number;
+    } | null
+  ) => {
+    if (imageData) {
+      setFormData({
+        ...formData,
+        photoBase64: imageData.base64 || "",
+        photoMimeType: imageData.mimeType || "",
+        photoFileName: imageData.fileName || "",
+        photoSize: imageData.size || 0,
+      });
+    } else {
+      setFormData({
+        ...formData,
+        photoBase64: "",
+        photoMimeType: "",
+        photoFileName: "",
+        photoSize: 0,
+      });
+    }
   };
 
   const handleNewSponsorChange = (
@@ -176,7 +207,11 @@ export const ChildForm: React.FC<ChildFormProps> = ({
       motherContact: "",
       story: "",
       comment: "",
-      photoUrl: "",
+      // Only reset image fields, remove photoUrl
+      photoBase64: "",
+      photoMimeType: "",
+      photoFileName: "",
+      photoSize: 0,
     });
 
     setNewSponsorData({
@@ -378,16 +413,81 @@ export const ChildForm: React.FC<ChildFormProps> = ({
             />
           )}
 
-          {/* Step 4: Additional Details */}
+          {/* Step 4: Additional Details with Image Upload */}
           {currentStep === 4 && (
-            <AdditionalDetailsStep
-              formData={{
-                story: formData.story,
-                comment: formData.comment,
-                photoUrl: formData.photoUrl,
-              }}
-              onChange={handleChange}
-            />
+            <div className="space-y-8">
+              <div className="flex items-center space-x-3 mb-6">
+                <FileText className="text-blue-600" size={28} />
+                <h2 className="text-3xl font-bold text-gray-900">
+                  Additional Information
+                </h2>
+              </div>
+
+              <div className="space-y-6">
+                {/* Image Upload */}
+                <ImageUpload
+                  value={
+                    formData.photoBase64
+                      ? `data:${formData.photoMimeType};base64,${formData.photoBase64}`
+                      : undefined
+                  }
+                  onChange={handleImageChange}
+                  maxSize={5}
+                  acceptedTypes={[
+                    "image/jpeg",
+                    "image/png",
+                    "image/jpg",
+                    "image/webp",
+                  ]}
+                />
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Child Story
+                  </label>
+                  <textarea
+                    name="story"
+                    value={formData.story}
+                    onChange={handleChange}
+                    rows={5}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/50 resize-none"
+                    placeholder="Tell us about this child's background, situation, dreams, and aspirations..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Volunteer Comments
+                  </label>
+                  <textarea
+                    name="comment"
+                    value={formData.comment}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/50 resize-none"
+                    placeholder="Internal notes and comments by volunteers"
+                  />
+                </div>
+
+                {/* Image Upload Status */}
+                {formData.photoBase64 && (
+                  <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+                    <div className="flex items-center space-x-2">
+                      <Check className="text-green-600" size={20} />
+                      <div>
+                        <p className="text-sm font-medium text-green-700">
+                          ✅ Image ready for upload
+                        </p>
+                        <p className="text-xs text-green-600 mt-1">
+                          File: {formData.photoFileName} (
+                          {Math.round(formData.photoSize / 1024)} KB)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Navigation Buttons */}

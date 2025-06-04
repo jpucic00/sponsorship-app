@@ -1,5 +1,5 @@
 import React from "react";
-import { GraduationCap, Calendar, Heart } from "lucide-react";
+import { GraduationCap, Calendar, Heart, Camera } from "lucide-react";
 import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface Child {
@@ -11,6 +11,10 @@ interface Child {
   class: string;
   isSponsored: boolean;
   dateEnteredRegister: string;
+  // Image fields
+  photoBase64?: string;
+  photoMimeType?: string;
+  photoDataUrl?: string;
   school: {
     id: number;
     name: string;
@@ -40,6 +44,22 @@ export const ChildrenCardsMobile: React.FC<ChildrenCardsMobileProps> = ({
   onViewChild,
   calculateAge,
 }) => {
+  // Function to get image source for a child
+  const getImageSrc = (child: Child) => {
+    if (child.photoDataUrl) {
+      return child.photoDataUrl;
+    }
+    if (child.photoBase64 && child.photoMimeType) {
+      return `data:${child.photoMimeType};base64,${child.photoBase64}`;
+    }
+    // Fallback to API endpoint
+    return `/api/children/${child.id}/image`;
+  };
+
+  const hasImage = (child: Child) => {
+    return !!(child.photoDataUrl || child.photoBase64 || child.photoMimeType);
+  };
+
   return (
     <div className="lg:hidden space-y-4 p-6">
       {children.map((child) => (
@@ -49,9 +69,36 @@ export const ChildrenCardsMobile: React.FC<ChildrenCardsMobileProps> = ({
         >
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold">
-                {child.firstName[0]}
-                {child.lastName[0]}
+              <div className="relative">
+                {hasImage(child) ? (
+                  <img
+                    src={getImageSrc(child)}
+                    alt={`${child.firstName} ${child.lastName}`}
+                    className="w-16 h-16 rounded-xl object-cover border-2 border-white shadow-md"
+                    onError={(e) => {
+                      // Fallback to initials on error
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = "none";
+                      const fallback = target.nextElementSibling as HTMLElement;
+                      if (fallback) {
+                        fallback.style.display = "flex";
+                      }
+                    }}
+                  />
+                ) : null}
+                <div
+                  className={`w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-lg ${
+                    hasImage(child) ? "hidden" : "flex"
+                  }`}
+                >
+                  {child.firstName[0]}
+                  {child.lastName[0]}
+                </div>
+                {hasImage(child) && (
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                    <Camera size={10} className="text-white" />
+                  </div>
+                )}
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900">
@@ -61,6 +108,7 @@ export const ChildrenCardsMobile: React.FC<ChildrenCardsMobileProps> = ({
                   {calculateAge(child.dateOfBirth)} years • {child.gender} •{" "}
                   {child.class}
                 </p>
+                <p className="text-xs text-gray-500">ID: #{child.id}</p>
               </div>
             </div>
             <span

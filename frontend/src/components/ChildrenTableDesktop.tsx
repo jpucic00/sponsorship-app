@@ -1,5 +1,5 @@
 import React from "react";
-import { Eye, Edit, Heart } from "lucide-react";
+import { Eye, Edit, Heart, Camera } from "lucide-react";
 import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface Child {
@@ -11,6 +11,10 @@ interface Child {
   class: string;
   isSponsored: boolean;
   dateEnteredRegister: string;
+  // Image fields
+  photoBase64?: string;
+  photoMimeType?: string;
+  photoDataUrl?: string;
   school: {
     id: number;
     name: string;
@@ -40,6 +44,22 @@ export const ChildrenTableDesktop: React.FC<ChildrenTableDesktopProps> = ({
   onViewChild,
   calculateAge,
 }) => {
+  // Function to get image source for a child
+  const getImageSrc = (child: Child) => {
+    if (child.photoDataUrl) {
+      return child.photoDataUrl;
+    }
+    if (child.photoBase64 && child.photoMimeType) {
+      return `data:${child.photoMimeType};base64,${child.photoBase64}`;
+    }
+    // Fallback to API endpoint
+    return `/api/children/${child.id}/image`;
+  };
+
+  const hasImage = (child: Child) => {
+    return !!(child.photoDataUrl || child.photoBase64 || child.photoMimeType);
+  };
+
   return (
     <div className="hidden lg:block overflow-x-auto">
       <table className="min-w-full">
@@ -73,10 +93,27 @@ export const ChildrenTableDesktop: React.FC<ChildrenTableDesktopProps> = ({
                 index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
               }`}
             >
-              {/* Child Name */}
+              {/* Child Name with Photo */}
               <td className="px-6 py-4">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold">
+                  {hasImage(child) ? (
+                    <img
+                      src={getImageSrc(child)}
+                      alt={`${child.firstName} ${child.lastName}`}
+                      className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-md"
+                      onError={(e) => {
+                        // Fallback to initials on error
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                        target.nextElementSibling?.classList.remove("hidden");
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className={`w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold ${
+                      hasImage(child) ? "hidden" : ""
+                    }`}
+                  >
                     {child.firstName[0]}
                     {child.lastName[0]}
                   </div>
@@ -84,7 +121,15 @@ export const ChildrenTableDesktop: React.FC<ChildrenTableDesktopProps> = ({
                     <div className="text-lg font-bold text-gray-900">
                       {child.firstName} {child.lastName}
                     </div>
-                    <div className="text-sm text-gray-600">ID: #{child.id}</div>
+                    <div className="text-sm text-gray-600 flex items-center space-x-2">
+                      <span>ID: #{child.id}</span>
+                      {hasImage(child) && (
+                        <div className="flex items-center space-x-1 text-green-600">
+                          <Camera size={12} />
+                          <span className="text-xs">Photo</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </td>

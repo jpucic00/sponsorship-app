@@ -29,7 +29,12 @@ model Child {
   // Child details
   story                 String?  // Story about the child
   comment               String?  // Volunteer comments
-  photoUrl              String?
+  
+  // Keep legacy single photo fields for backwards compatibility
+  photoBase64           String?  // Will be populated with latest photo
+  photoMimeType         String?  // MIME type of latest photo
+  photoFileName         String?  // Filename of latest photo
+  photoSize             Int?     // File size of latest photo
   
   // Tracking dates
   dateEnteredRegister   DateTime @default(now())
@@ -42,9 +47,27 @@ model Child {
   
   // Relations
   school                School   @relation(fields: [schoolId], references: [id])
-  sponsorships          Sponsorship[]  // Changed from sponsorship to sponsorships (many)
+  sponsorships          Sponsorship[]
+  photos                ChildPhoto[]  // New relation to photos
   
   @@map("children")
+}
+
+model ChildPhoto {
+  id          Int      @id @default(autoincrement())
+  childId     Int
+  photoBase64 String   // Base64 encoded image data
+  mimeType    String   // Image MIME type
+  fileName    String?  // Original filename
+  fileSize    Int?     // File size in bytes
+  description String?  // Optional description/caption
+  uploadedAt  DateTime @default(now())
+  isProfile   Boolean  @default(false) // Latest photo is marked as profile
+  
+  // Relations
+  child       Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  
+  @@map("child_photos")
 }
 
 model School {
@@ -92,10 +115,10 @@ model Proxy {
 
 model Sponsorship {
   id              Int      @id @default(autoincrement())
-  childId         Int      // Removed @unique to allow multiple sponsorships per child
+  childId         Int
   sponsorId       Int
   startDate       DateTime @default(now())
-  endDate         DateTime? // Added to track when sponsorship ends
+  endDate         DateTime?
   monthlyAmount   Float?
   paymentMethod   String?
   isActive        Boolean  @default(true)
@@ -106,7 +129,6 @@ model Sponsorship {
   child   Child   @relation(fields: [childId], references: [id])
   sponsor Sponsor @relation(fields: [sponsorId], references: [id])
   
-  // Ensure a sponsor can't sponsor the same child twice at the same time
   @@unique([childId, sponsorId, isActive])
   @@map("sponsorships")
 }
