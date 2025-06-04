@@ -264,16 +264,8 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
       <div className="max-w-7xl mx-auto px-4 space-y-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            Children Registry
-          </h1>
-          <p className="text-gray-600 text-xl">
-            {pagination.totalCount} children found
-          </p>
-        </div>
-
+        {/* Statistics Bar */}
+        <ChildrenStatistics children={children} pagination={pagination} />
         {/* Search and Filters */}
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
           <ChildrenSearchBar
@@ -362,9 +354,6 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
             clearAllFilters={clearAllFilters}
           />
         )}
-
-        {/* Statistics Bar */}
-        <ChildrenStatistics children={children} pagination={pagination} />
 
         {/* Filter Summary */}
         <FilterSummary
