@@ -1,4 +1,3 @@
-// File: backend/src/routes/child-photos.ts
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 
@@ -15,9 +14,9 @@ const validateImageData = (photoBase64: string, mimeType: string, fileSize?: num
   // Validate base64 format
   try {
     Buffer.from(photoBase64, 'base64');
-    } catch (error) {
-      throw new Error('Invalid base64 image data');
-    }
+  } catch (error) {
+    throw new Error('Invalid base64 image data');
+  }
   
   // Size limit check (5MB in base64 is roughly 6.7MB)
   if (photoBase64.length > 7000000) {
@@ -30,68 +29,23 @@ const validateImageData = (photoBase64: string, mimeType: string, fileSize?: num
   }
 };
 
-// Helper function to update child's profile photo with latest photo
-const updateChildProfilePhoto = async (childId: number, tx: any) => {
-  // Get the latest photo
-  const latestPhoto = await tx.childPhoto.findFirst({
-    where: { childId },
-    orderBy: { uploadedAt: 'desc' }
-  });
-
-  if (latestPhoto) {
-    // Update child's main photo fields with latest photo
-    await tx.child.update({
-      where: { id: childId },
-      data: {
-        photoBase64: latestPhoto.photoBase64,
-        photoMimeType: latestPhoto.mimeType,
-        photoFileName: latestPhoto.fileName,
-        photoSize: latestPhoto.fileSize,
-        lastProfileUpdate: new Date()
-      }
-    });
-
-    // Mark latest photo as profile photo
-    await tx.childPhoto.updateMany({
-      where: { childId },
-      data: { isProfile: false }
-    });
-
-    await tx.childPhoto.update({
-      where: { id: latestPhoto.id },
-      data: { isProfile: true }
-    });
-  } else {
-    // No photos left, clear child's photo fields
-    await tx.child.update({
-      where: { id: childId },
-      data: {
-        photoBase64: null,
-        photoMimeType: null,
-        photoFileName: null,
-        photoSize: null,
-        lastProfileUpdate: new Date()
-      }
-    });
-  }
-};
-
-// GET all photos for a child
+// GET all photos for a specific child
 router.get('/child/:childId', async (req, res) => {
   try {
     const { childId } = req.params;
-    const includeBase64 = req.query.includeBase64 === 'true';
-
+    const { includeBase64 = 'false' } = req.query;
+    
     // Validate child exists
     const child = await prisma.child.findUnique({
       where: { id: parseInt(childId) }
     });
-
+    
     if (!child) {
       return res.status(404).json({ error: 'Child not found' });
     }
 
-    const selectFields: any = {
+    // Build select clause - exclude large base64 data unless specifically requested
+    const select: any = {
       id: true,
       childId: true,
       mimeType: true,
@@ -102,40 +56,41 @@ router.get('/child/:childId', async (req, res) => {
       isProfile: true
     };
 
-    // Only include base64 data if specifically requested
-    if (includeBase64) {
-      selectFields.photoBase64 = true;
+    // Include base64 data only if requested
+    if (includeBase64 === 'true') {
+      select.photoBase64 = true;
     }
 
     const photos = await prisma.childPhoto.findMany({
       where: { childId: parseInt(childId) },
-      select: selectFields,
+      select,
       orderBy: { uploadedAt: 'desc' }
     });
 
-    // Add data URLs for photos if base64 is included
-    const processedPhotos = photos.map(photo => ({
-      ...photo,
-      dataUrl: includeBase64 && photo.photoBase64 
-        ? `data:${photo.mimeType};base64,${photo.photoBase64}`
-        : undefined,
-      photoBase64: includeBase64 ? photo.photoBase64 : undefined
-    }));
+    // Add data URLs if base64 is included
+    const photosWithDataUrls = photos.map(photo => {
+      if (photo.photoBase64 && photo.mimeType) {
+        return {
+          ...photo,
+          dataUrl: `data:${photo.mimeType};base64,${photo.photoBase64}`
+        };
+      }
+      return photo;
+    });
 
-    res.json(processedPhotos);
+    res.json(photosWithDataUrls);
   } catch (error) {
     console.error('Error fetching child photos:', error);
     res.status(500).json({ error: 'Failed to fetch photos' });
   }
 });
 
-// POST add new photo to child
+// POST create new photo for a child
 router.post('/child/:childId', async (req, res) => {
   try {
     const { childId } = req.params;
     const { photoBase64, mimeType, fileName, fileSize, description } = req.body;
 
-    // Validate required fields
     if (!photoBase64 || !mimeType) {
       return res.status(400).json({ error: 'Photo data and MIME type are required' });
     }
@@ -144,7 +99,7 @@ router.post('/child/:childId', async (req, res) => {
     const child = await prisma.child.findUnique({
       where: { id: parseInt(childId) }
     });
-
+    
     if (!child) {
       return res.status(404).json({ error: 'Child not found' });
     }
@@ -153,11 +108,19 @@ router.post('/child/:childId', async (req, res) => {
     try {
       validateImageData(photoBase64, mimeType, fileSize);
     } catch (error) {
-      return res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid image data' });
+      return res.status(400).json({ 
+        error: error instanceof Error ? error.message : 'Invalid image data' 
+      });
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // Create new photo record
+      // Mark all existing photos as non-profile (latest photo becomes profile)
+      await tx.childPhoto.updateMany({
+        where: { childId: parseInt(childId) },
+        data: { isProfile: false }
+      });
+
+      // Create new photo (this will be the new profile photo)
       const newPhoto = await tx.childPhoto.create({
         data: {
           childId: parseInt(childId),
@@ -165,91 +128,48 @@ router.post('/child/:childId', async (req, res) => {
           mimeType,
           fileName: fileName?.trim() || null,
           fileSize: fileSize || null,
-          description: description?.trim() || null,
-          uploadedAt: new Date(),
-          isProfile: false // Will be set to true by updateChildProfilePhoto
+          description: description?.trim() || '',
+          isProfile: true // Latest photo is always profile
         }
       });
 
-      // Update child's profile photo with latest photo
-      await updateChildProfilePhoto(parseInt(childId), tx);
+      // Update child's last profile update timestamp
+      await tx.child.update({
+        where: { id: parseInt(childId) },
+        data: {
+          lastProfileUpdate: new Date()
+        }
+      });
 
       return newPhoto;
     });
 
-    // Return photo without base64 data for response
-    const { photoBase64: _, ...photoResponse } = result;
-    res.status(201).json({
-      ...photoResponse,
-      message: 'Photo uploaded successfully and set as profile photo'
-    });
-
+    res.status(201).json(result);
   } catch (error) {
-    console.error('Error uploading photo:', error);
-    res.status(500).json({ error: 'Failed to upload photo' });
+    console.error('Error creating photo:', error);
+    res.status(500).json({ error: 'Failed to create photo' });
   }
 });
 
-// DELETE photo by ID
-router.delete('/:photoId', async (req, res) => {
-  try {
-    const { photoId } = req.params;
-
-    // Get photo details before deletion
-    const photo = await prisma.childPhoto.findUnique({
-      where: { id: parseInt(photoId) },
-      include: { child: true }
-    });
-
-    if (!photo) {
-      return res.status(404).json({ error: 'Photo not found' });
-    }
-
-    const childId = photo.childId;
-
-    await prisma.$transaction(async (tx) => {
-      // Delete the photo
-      await tx.childPhoto.delete({
-        where: { id: parseInt(photoId) }
-      });
-
-      // Update child's profile photo with remaining latest photo
-      await updateChildProfilePhoto(childId, tx);
-    });
-
-    res.json({ 
-      message: 'Photo deleted successfully',
-      wasProfilePhoto: photo.isProfile
-    });
-
-  } catch (error) {
-    console.error('Error deleting photo:', error);
-    res.status(500).json({ error: 'Failed to delete photo' });
-  }
-});
-
-// GET specific photo by ID with full data
+// GET specific photo by ID (serves the image directly)
 router.get('/:photoId', async (req, res) => {
   try {
     const { photoId } = req.params;
-
+    
     const photo = await prisma.childPhoto.findUnique({
       where: { id: parseInt(photoId) },
-      include: {
-        child: {
-          select: {
-            firstName: true,
-            lastName: true
-          }
-        }
+      select: {
+        photoBase64: true,
+        mimeType: true,
+        fileName: true
       }
     });
 
-    if (!photo) {
+    if (!photo || !photo.photoBase64 || !photo.mimeType) {
       return res.status(404).json({ error: 'Photo not found' });
     }
 
-    // Convert base64 to buffer for serving
+    // Convert base64 to buffer
     const imageBuffer = Buffer.from(photo.photoBase64, 'base64');
 
     // Set appropriate headers
@@ -257,7 +177,7 @@ router.get('/:photoId', async (req, res) => {
       'Content-Type': photo.mimeType,
       'Content-Length': imageBuffer.length.toString(),
       'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
-      'ETag': `"${photoId}-${photo.uploadedAt.getTime()}"`,
+      'ETag': `"${photoId}-${photo.photoBase64.substring(0, 10)}"`, // Simple ETag
     });
 
     // Set filename if available
@@ -278,19 +198,9 @@ router.put('/:photoId', async (req, res) => {
     const { photoId } = req.params;
     const { description } = req.body;
 
-    const photo = await prisma.childPhoto.findUnique({
-      where: { id: parseInt(photoId) }
-    });
-
-    if (!photo) {
-      return res.status(404).json({ error: 'Photo not found' });
-    }
-
-    const updatedPhoto = await prisma.childPhoto.update({
+    const photo = await prisma.childPhoto.update({
       where: { id: parseInt(photoId) },
-      data: {
-        description: description?.trim() || null
-      },
+      data: { description: description?.trim() || '' },
       select: {
         id: true,
         childId: true,
@@ -303,10 +213,117 @@ router.put('/:photoId', async (req, res) => {
       }
     });
 
-    res.json(updatedPhoto);
+    res.json(photo);
   } catch (error) {
     console.error('Error updating photo:', error);
-    res.status(500).json({ error: 'Failed to update photo' });
+    // Handle Prisma not found error
+    if (error instanceof Error && 'code' in error && error.code === 'P2025') {
+      res.status(404).json({ error: 'Photo not found' });
+    } else {
+      res.status(500).json({ error: 'Failed to update photo' });
+    }
+  }
+});
+
+// DELETE photo
+router.delete('/:photoId', async (req, res) => {
+  try {
+    const { photoId } = req.params;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Get the photo to be deleted
+      const photoToDelete = await tx.childPhoto.findUnique({
+        where: { id: parseInt(photoId) },
+        select: { id: true, childId: true, isProfile: true }
+      });
+
+      if (!photoToDelete) {
+        throw new Error('Photo not found');
+      }
+
+      // Delete the photo
+      await tx.childPhoto.delete({
+        where: { id: parseInt(photoId) }
+      });
+
+      // If this was the profile photo, make the next most recent photo the profile
+      if (photoToDelete.isProfile) {
+        const nextPhoto = await tx.childPhoto.findFirst({
+          where: { childId: photoToDelete.childId },
+          orderBy: { uploadedAt: 'desc' }
+        });
+
+        if (nextPhoto) {
+          // Make the next photo the profile photo
+          await tx.childPhoto.update({
+            where: { id: nextPhoto.id },
+            data: { isProfile: true }
+          });
+        }
+
+        // Update child's last profile update timestamp
+        await tx.child.update({
+          where: { id: photoToDelete.childId },
+          data: {
+            lastProfileUpdate: new Date()
+          }
+        });
+      }
+
+      return { success: true, wasProfile: photoToDelete.isProfile };
+    });
+
+    res.json({ message: 'Photo deleted successfully', ...result });
+  } catch (error) {
+    console.error('Error deleting photo:', error);
+    if (error instanceof Error && error.message === 'Photo not found') {
+      res.status(404).json({ error: 'Photo not found' });
+    } else {
+      res.status(500).json({ error: 'Failed to delete photo' });
+    }
+  }
+});
+
+// GET profile photo for a child (returns the latest/profile photo)
+router.get('/child/:childId/profile', async (req, res) => {
+  try {
+    const { childId } = req.params;
+    
+    const profilePhoto = await prisma.childPhoto.findFirst({
+      where: { 
+        childId: parseInt(childId),
+        isProfile: true 
+      },
+      select: {
+        photoBase64: true,
+        mimeType: true,
+        fileName: true
+      }
+    });
+
+    if (!profilePhoto || !profilePhoto.photoBase64 || !profilePhoto.mimeType) {
+      return res.status(404).json({ error: 'Profile photo not found' });
+    }
+
+    // Convert base64 to buffer
+    const imageBuffer = Buffer.from(profilePhoto.photoBase64, 'base64');
+
+    // Set appropriate headers
+    res.set({
+      'Content-Type': profilePhoto.mimeType,
+      'Content-Length': imageBuffer.length.toString(),
+      'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
+    });
+
+    // Set filename if available
+    if (profilePhoto.fileName) {
+      res.set('Content-Disposition', `inline; filename="profile_${profilePhoto.fileName}"`);
+    }
+
+    res.send(imageBuffer);
+  } catch (error) {
+    console.error('Error serving profile photo:', error);
+    res.status(500).json({ error: 'Failed to serve profile photo' });
   }
 });
 

@@ -5,43 +5,36 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 // Helper function to process child data for response
-const processChildForResponse = (child: any) => {
+const processChildForResponse = async (child: any, includeProfilePhoto = false) => {
   let processedChild = { ...child };
-  
-  // Convert base64 back to data URL for frontend if image exists
-  if (child.photoBase64 && child.photoMimeType) {
-    processedChild.photoDataUrl = `data:${child.photoMimeType};base64,${child.photoBase64}`;
-  }
   
   // Add computed isSponsored field
   processedChild.isSponsored = (child.sponsorships?.length || 0) > 0;
   
-  return processedChild;
-};
+  // If requested, include profile photo data
+  if (includeProfilePhoto) {
+    const profilePhoto = await prisma.childPhoto.findFirst({
+      where: { 
+        childId: child.id,
+        isProfile: true 
+      },
+      select: {
+        photoBase64: true,
+        mimeType: true,
+        fileName: true,
+        fileSize: true
+      }
+    });
 
-// Helper function to validate image data
-const validateImageData = (photoBase64: string, photoMimeType: string, photoSize?: number) => {
-  // Check MIME type
-  if (!photoMimeType || !photoMimeType.startsWith('image/')) {
-    throw new Error('Invalid image MIME type');
+    if (profilePhoto && profilePhoto.photoBase64 && profilePhoto.mimeType) {
+      processedChild.photoDataUrl = `data:${profilePhoto.mimeType};base64,${profilePhoto.photoBase64}`;
+      processedChild.photoMimeType = profilePhoto.mimeType;
+      processedChild.photoFileName = profilePhoto.fileName;
+      processedChild.photoSize = profilePhoto.fileSize;
+    }
   }
   
-  // Validate base64 format
-  try {
-    Buffer.from(photoBase64, 'base64');
-  } catch (error) {
-    throw new Error('Invalid base64 image data');
-  }
-  
-  // Size limit check (5MB in base64 is roughly 6.7MB)
-  if (photoBase64.length > 7000000) {
-    throw new Error('Image too large. Maximum size is 5MB');
-  }
-  
-  // Additional size check if provided
-  if (photoSize && photoSize > 5242880) { // 5MB in bytes
-    throw new Error('Image file size exceeds 5MB limit');
-  }
+  return processedChild;
 };
 
 // GET all children with pagination - MUST be first
@@ -55,7 +48,7 @@ router.get('/', async (req, res) => {
     const schoolId = req.query.schoolId as string;
     const sponsorId = req.query.sponsorId as string;
     const proxyId = req.query.proxyId as string;
-    const includeImages = req.query.includeImages === 'true'; // Optional: include image data in list
+    const includeImages = req.query.includeImages !== 'false'; // Include images by default
 
     const skip = (page - 1) * limit;
 
@@ -130,31 +123,8 @@ router.get('/', async (req, res) => {
     // Get total count for pagination
     const totalCount = await prisma.child.count({ where });
 
-    // Build select clause - exclude large image data unless specifically requested
-    const select: any = {
-      id: true,
-      firstName: true,
-      lastName: true,
-      dateOfBirth: true,
-      gender: true,
-      class: true,
-      fatherFullName: true,
-      fatherAddress: true,
-      fatherContact: true,
-      motherFullName: true,
-      motherAddress: true,
-      motherContact: true,
-      story: true,
-      comment: true,
-      // Remove photoUrl from select
-      photoMimeType: true,
-      photoFileName: true,
-      photoSize: true,
-      dateEnteredRegister: true,
-      lastProfileUpdate: true,
-      isSponsored: true,
-      createdAt: true,
-      updatedAt: true,
+    // Build include/select clause
+    const include = {
       school: true,
       sponsorships: {
         where: { isActive: true },
@@ -168,28 +138,29 @@ router.get('/', async (req, res) => {
       }
     };
 
-    // Include image data only if requested (for performance)
-    if (includeImages) {
-      select.photoBase64 = true;
-    }
-
     // Get paginated children
     const children = await prisma.child.findMany({
       where,
-      select,
+      include,
       orderBy: { createdAt: 'desc' },
       skip,
       take: limit
     });
 
-    // Process children data
-    let childrenWithStatus = children.map(child => processChildForResponse(child));
+    // Process children data and include profile photos
+    const childrenWithStatus = await Promise.all(
+      children.map(async (child) => {
+        const processedChild = await processChildForResponse(child, includeImages);
+        return processedChild;
+      })
+    );
 
     // Apply sponsorship filter post-query if specified
+    let filteredChildren = childrenWithStatus;
     if (sponsorshipFilter === 'sponsored') {
-      childrenWithStatus = childrenWithStatus.filter(child => child.isSponsored);
+      filteredChildren = childrenWithStatus.filter(child => child.isSponsored);
     } else if (sponsorshipFilter === 'unsponsored') {
-      childrenWithStatus = childrenWithStatus.filter(child => !child.isSponsored);
+      filteredChildren = childrenWithStatus.filter(child => !child.isSponsored);
     }
 
     // Recalculate pagination if sponsorship filter was applied
@@ -212,7 +183,7 @@ router.get('/', async (req, res) => {
     const hasPrevPage = page > 1;
 
     res.json({
-      data: childrenWithStatus,
+      data: filteredChildren,
       pagination: {
         currentPage: page,
         totalPages,
@@ -230,7 +201,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST create new child with image support
+// POST create new child with photo gallery integration
 router.post('/', async (req, res) => {
   try {
     const {
@@ -248,8 +219,7 @@ router.post('/', async (req, res) => {
       motherContact,
       story,
       comment,
-      // Remove photoUrl handling
-      // New image fields
+      // Image fields for photo gallery
       photoBase64,
       photoMimeType,
       photoFileName,
@@ -265,15 +235,6 @@ router.post('/', async (req, res) => {
 
     if (!fatherFullName || !motherFullName) {
       return res.status(400).json({ error: 'Both parent names are required' });
-    }
-
-    // Validate image data if provided
-    if (photoBase64) {
-      try {
-        validateImageData(photoBase64, photoMimeType, photoSize);
-      } catch (error) {
-        return res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid image data' });
-      }
     }
 
     // Validate school exists
@@ -312,7 +273,7 @@ router.post('/', async (req, res) => {
         finalSponsorIds.push(createdSponsor.id);
       }
 
-      // Prepare child data
+      // Prepare child data (NO image fields in children table)
       const childData: any = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -333,14 +294,6 @@ router.post('/', async (req, res) => {
         isSponsored: finalSponsorIds.length > 0
       };
 
-      // Add image data if provided
-      if (photoBase64 && photoMimeType) {
-        childData.photoBase64 = photoBase64;
-        childData.photoMimeType = photoMimeType;
-        childData.photoFileName = photoFileName?.trim() || null;
-        childData.photoSize = photoSize || null;
-      }
-
       // Create child record
       const child = await tx.child.create({
         data: childData,
@@ -348,6 +301,26 @@ router.post('/', async (req, res) => {
           school: true
         }
       });
+
+      // Add photo to gallery if provided
+      if (photoBase64 && photoMimeType) {
+        // Validate image data (you may want to extract this to a helper function)
+        if (!photoMimeType.startsWith('image/')) {
+          throw new Error('Invalid image MIME type');
+        }
+
+        await tx.childPhoto.create({
+          data: {
+            childId: child.id,
+            photoBase64,
+            mimeType: photoMimeType,
+            fileName: photoFileName?.trim() || null,
+            fileSize: photoSize || null,
+            description: '',
+            isProfile: true // First photo is always profile
+          }
+        });
+      }
 
       // Create sponsorship records
       if (finalSponsorIds.length > 0) {
@@ -368,7 +341,7 @@ router.post('/', async (req, res) => {
       return child;
     });
 
-    // Fetch complete child data with relationships
+    // Fetch complete child data with relationships and profile photo
     const completeChild = await prisma.child.findUnique({
       where: { id: result.id },
       include: {
@@ -386,7 +359,7 @@ router.post('/', async (req, res) => {
       }
     });
 
-    const processedChild = processChildForResponse(completeChild);
+    const processedChild = await processChildForResponse(completeChild, true);
     res.status(201).json(processedChild);
     
   } catch (error) {
@@ -558,17 +531,14 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    // Handle image updates
-    if (updateData.photoBase64) {
-      try {
-        validateImageData(updateData.photoBase64, updateData.photoMimeType, updateData.photoSize);
-      } catch (error) {
-        return res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid image data' });
-      }
-    }
+    // Remove any image fields from update data (they should go through photo gallery)
+    delete updateData.photoBase64;
+    delete updateData.photoMimeType;
+    delete updateData.photoFileName;
+    delete updateData.photoSize;
 
     // Trim string fields
-    const stringFields = ['firstName', 'lastName', 'fatherFullName', 'motherFullName', 'fatherAddress', 'fatherContact', 'motherAddress', 'motherContact', 'story', 'comment', 'photoUrl', 'photoFileName'];
+    const stringFields = ['firstName', 'lastName', 'fatherFullName', 'motherFullName', 'fatherAddress', 'fatherContact', 'motherAddress', 'motherContact', 'story', 'comment'];
     stringFields.forEach(field => {
       if (updateData[field] !== undefined) {
         updateData[field] = updateData[field]?.trim() || null;
@@ -593,7 +563,7 @@ router.put('/:id', async (req, res) => {
       }
     });
 
-    const processedChild = processChildForResponse(child);
+    const processedChild = await processChildForResponse(child, true);
     res.json(processedChild);
     
   } catch (error) {
@@ -602,45 +572,47 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// GET image endpoint for serving images directly
+// GET profile image endpoint for serving profile images directly
 router.get('/:id/image', async (req, res) => {
   try {
     const { id } = req.params;
-    const { size } = req.query; // Optional: 'thumbnail', 'medium', 'full'
     
-    const child = await prisma.child.findUnique({
-      where: { id: parseInt(id) },
+    const profilePhoto = await prisma.childPhoto.findFirst({
+      where: { 
+        childId: parseInt(id),
+        isProfile: true 
+      },
       select: {
         photoBase64: true,
-        photoMimeType: true,
-        photoFileName: true
+        mimeType: true,
+        fileName: true
       }
     });
 
-    if (!child || !child.photoBase64 || !child.photoMimeType) {
-      return res.status(404).json({ error: 'Image not found' });
+    if (!profilePhoto || !profilePhoto.photoBase64 || !profilePhoto.mimeType) {
+      return res.status(404).json({ error: 'Profile image not found' });
     }
 
     // Convert base64 to buffer
-    const imageBuffer = Buffer.from(child.photoBase64, 'base64');
+    const imageBuffer = Buffer.from(profilePhoto.photoBase64, 'base64');
 
     // Set appropriate headers
     res.set({
-      'Content-Type': child.photoMimeType,
+      'Content-Type': profilePhoto.mimeType,
       'Content-Length': imageBuffer.length.toString(),
       'Cache-Control': 'public, max-age=86400', // Cache for 24 hours
-      'ETag': `"${id}-${child.photoBase64.substring(0, 10)}"`, // Simple ETag
+      'ETag': `"${id}-${profilePhoto.photoBase64.substring(0, 10)}"`, // Simple ETag
     });
 
     // Set filename if available
-    if (child.photoFileName) {
-      res.set('Content-Disposition', `inline; filename="${child.photoFileName}"`);
+    if (profilePhoto.fileName) {
+      res.set('Content-Disposition', `inline; filename="profile_${profilePhoto.fileName}"`);
     }
 
     res.send(imageBuffer);
   } catch (error) {
-    console.error('Error serving image:', error);
-    res.status(500).json({ error: 'Failed to serve image' });
+    console.error('Error serving profile image:', error);
+    res.status(500).json({ error: 'Failed to serve profile image' });
   }
 });
 
@@ -681,7 +653,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Child not found' });
     }
 
-    const processedChild = processChildForResponse(child);
+    const processedChild = await processChildForResponse(child, true);
     res.json(processedChild);
     
   } catch (error) {

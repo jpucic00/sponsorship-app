@@ -12,7 +12,7 @@ import sponsorshipsRoutes from './routes/sponsorships';
 import volunteersRoutes from './routes/volunteers';
 import schoolsRoutes from './routes/schools';
 import proxiesRoutes from './routes/proxies';
-import childPhotosRoutes from './routes/child-photos'; // New photo routes
+import childPhotosRoutes from './routes/child-photos'; // Photo gallery routes
 
 dotenv.config();
 

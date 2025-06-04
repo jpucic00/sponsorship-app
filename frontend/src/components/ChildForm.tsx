@@ -67,7 +67,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
     motherContact: "",
     story: "",
     comment: "",
-    // Only keep image fields, remove photoUrl
+    // Image fields for photo gallery
     photoBase64: "",
     photoMimeType: "",
     photoFileName: "",
@@ -207,7 +207,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
       motherContact: "",
       story: "",
       comment: "",
-      // Only reset image fields, remove photoUrl
+      // Reset image fields
       photoBase64: "",
       photoMimeType: "",
       photoFileName: "",
@@ -286,6 +286,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
     }
 
     try {
+      // Submit child data - the backend will handle creating the photo in the gallery
       await onSubmit(finalData);
       resetForm();
       fetchData();
@@ -424,22 +425,39 @@ export const ChildForm: React.FC<ChildFormProps> = ({
               </div>
 
               <div className="space-y-6">
-                {/* Image Upload */}
-                <ImageUpload
-                  value={
-                    formData.photoBase64
-                      ? `data:${formData.photoMimeType};base64,${formData.photoBase64}`
-                      : undefined
-                  }
-                  onChange={handleImageChange}
-                  maxSize={5}
-                  acceptedTypes={[
-                    "image/jpeg",
-                    "image/png",
-                    "image/jpg",
-                    "image/webp",
-                  ]}
-                />
+                {/* Image Upload - will be added to photo gallery */}
+                <div className="bg-purple-50 p-6 rounded-xl border border-purple-200">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+                    Child Photo
+                  </h3>
+                  <div className="bg-white/60 p-4 rounded-xl border border-purple-200 mb-4">
+                    <p className="text-sm text-purple-700 font-medium mb-2">
+                      📸 About Photo Gallery
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      The photo you upload here will be added to the child's
+                      photo gallery and automatically set as their profile
+                      picture. You can add more photos later through the photo
+                      gallery on the child's detail page.
+                    </p>
+                  </div>
+                  <ImageUpload
+                    value={
+                      formData.photoBase64
+                        ? `data:${formData.photoMimeType};base64,${formData.photoBase64}`
+                        : undefined
+                    }
+                    onChange={handleImageChange}
+                    maxSize={5}
+                    acceptedTypes={[
+                      "image/jpeg",
+                      "image/png",
+                      "image/jpg",
+                      "image/webp",
+                    ]}
+                  />
+                </div>
 
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700">
@@ -476,11 +494,15 @@ export const ChildForm: React.FC<ChildFormProps> = ({
                       <Check className="text-green-600" size={20} />
                       <div>
                         <p className="text-sm font-medium text-green-700">
-                          ✅ Image ready for upload
+                          ✅ Photo ready for gallery
                         </p>
                         <p className="text-xs text-green-600 mt-1">
                           File: {formData.photoFileName} (
                           {Math.round(formData.photoSize / 1024)} KB)
+                        </p>
+                        <p className="text-xs text-green-600">
+                          This will be saved in the photo gallery and set as
+                          profile picture
                         </p>
                       </div>
                     </div>

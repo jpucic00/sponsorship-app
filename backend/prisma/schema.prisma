@@ -30,11 +30,11 @@ model Child {
   story                 String?  // Story about the child
   comment               String?  // Volunteer comments
   
-  // Keep legacy single photo fields for backwards compatibility
-  photoBase64           String?  // Will be populated with latest photo
-  photoMimeType         String?  // MIME type of latest photo
-  photoFileName         String?  // Filename of latest photo
-  photoSize             Int?     // File size of latest photo
+  // REMOVED: All image fields now handled by ChildPhoto model
+  // photoBase64           String?  
+  // photoMimeType         String?  
+  // photoFileName         String?  
+  // photoSize             Int?     
   
   // Tracking dates
   dateEnteredRegister   DateTime @default(now())
@@ -48,7 +48,7 @@ model Child {
   // Relations
   school                School   @relation(fields: [schoolId], references: [id])
   sponsorships          Sponsorship[]
-  photos                ChildPhoto[]  // New relation to photos
+  photos                ChildPhoto[]  // All photos for this child
   
   @@map("children")
 }
