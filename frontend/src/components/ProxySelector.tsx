@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Search, Plus, Users, Check } from "lucide-react";
 
 interface Proxy {
@@ -52,12 +52,33 @@ export const ProxySelector: React.FC<ProxySelectorProps> = ({
   newSponsorData,
   handleNewSponsorChange,
 }) => {
+  // State for actual search term that triggers filtering
+  const [actualSearchTerm, setActualSearchTerm] = useState("");
+
   const filteredProxies = proxies.filter(
     (proxy) =>
-      proxy.fullName.toLowerCase().includes(proxySearchTerm.toLowerCase()) ||
-      proxy.role.toLowerCase().includes(proxySearchTerm.toLowerCase()) ||
-      proxy.contact.toLowerCase().includes(proxySearchTerm.toLowerCase())
+      proxy.fullName.toLowerCase().includes(actualSearchTerm.toLowerCase()) ||
+      proxy.role.toLowerCase().includes(actualSearchTerm.toLowerCase()) ||
+      proxy.contact.toLowerCase().includes(actualSearchTerm.toLowerCase())
   );
+
+  // Handle search execution
+  const handleSearch = () => {
+    setActualSearchTerm(proxySearchTerm);
+  };
+
+  // Handle Enter key press
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setProxySearchTerm("");
+    setActualSearchTerm("");
+  };
 
   const handleProxySelect = (proxy: Proxy) => {
     setSelectedProxy(proxy);
@@ -158,6 +179,7 @@ export const ProxySelector: React.FC<ProxySelectorProps> = ({
             !selectedProxy &&
             newSponsorData.proxyId === "" && (
               <div className="space-y-4">
+                {/* Search Bar with Manual Trigger */}
                 <div className="relative">
                   <Search
                     className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -168,9 +190,47 @@ export const ProxySelector: React.FC<ProxySelectorProps> = ({
                     placeholder="Search proxies by name, role, or contact..."
                     value={proxySearchTerm}
                     onChange={(e) => setProxySearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/70"
+                    onKeyPress={handleKeyPress}
+                    className="w-full pl-12 pr-24 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/70"
                   />
+                  <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex space-x-1">
+                    {actualSearchTerm && (
+                      <button
+                        onClick={handleClearSearch}
+                        className="px-3 py-1 text-gray-500 hover:text-gray-700 text-sm font-medium"
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <button
+                      onClick={handleSearch}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm font-medium"
+                    >
+                      Search
+                    </button>
+                  </div>
                 </div>
+
+                {/* Search Results Info */}
+                {actualSearchTerm && (
+                  <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                    <p className="text-sm text-purple-700">
+                      {filteredProxies.length > 0 ? (
+                        <>
+                          Found{" "}
+                          <span className="font-semibold">
+                            {filteredProxies.length}
+                          </span>{" "}
+                          prox
+                          {filteredProxies.length !== 1 ? "ies" : "y"} matching
+                          "{actualSearchTerm}"
+                        </>
+                      ) : (
+                        <>No proxies found matching "{actualSearchTerm}"</>
+                      )}
+                    </p>
+                  </div>
+                )}
 
                 <div className="max-h-60 overflow-y-auto space-y-2">
                   {filteredProxies.length > 0 ? (
@@ -193,12 +253,27 @@ export const ProxySelector: React.FC<ProxySelectorProps> = ({
                         </div>
                       </div>
                     ))
-                  ) : (
+                  ) : actualSearchTerm ? (
                     <div className="text-center py-8 text-gray-500">
                       <Users size={48} className="mx-auto mb-3 opacity-50" />
                       <p>No proxies found</p>
                       <p className="text-sm">
-                        Try adjusting your search or create a new proxy.
+                        Try different search terms or{" "}
+                        <button
+                          onClick={handleClearSearch}
+                          className="text-purple-600 hover:text-purple-800 underline"
+                        >
+                          clear the search
+                        </button>{" "}
+                        to see all proxies.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Users size={48} className="mx-auto mb-3 opacity-50" />
+                      <p>Use search to find proxies</p>
+                      <p className="text-sm">
+                        Search through {proxies.length} available proxies above.
                       </p>
                     </div>
                   )}

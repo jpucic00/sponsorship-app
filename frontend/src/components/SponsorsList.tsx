@@ -74,23 +74,12 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
     endIndex: 1,
   });
 
-  // Filter states
+  // Search states - separate input from actual search
   const [searchTerm, setSearchTerm] = useState("");
+  const [actualSearchTerm, setActualSearchTerm] = useState(""); // What we actually search for
   const [filterProxy, setFilterProxy] = useState("all");
   const [filterSponsorship, setFilterSponsorship] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
-
-  // Debounced search
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-
-  // Debounce search term
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
 
   const fetchData = useCallback(
     async (page: number = 1, resetPage: boolean = false) => {
@@ -100,7 +89,7 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
         const params = new URLSearchParams({
           page: resetPage ? "1" : page.toString(),
           limit: "20",
-          search: debouncedSearchTerm,
+          search: actualSearchTerm, // Use actualSearchTerm instead of searchTerm
         });
 
         if (filterProxy !== "all") {
@@ -127,7 +116,7 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
         setLoading(false);
       }
     },
-    [debouncedSearchTerm, filterProxy, filterSponsorship, pagination]
+    [actualSearchTerm, filterProxy, filterSponsorship, pagination]
   );
 
   // Initial data fetch
@@ -135,14 +124,27 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
     fetchData(1, true);
   }, []);
 
-  // Refetch when filters change
+  // Refetch when filters change (but NOT when searchTerm changes)
   useEffect(() => {
-    if (debouncedSearchTerm !== searchTerm) {
-      // Don't refetch while debouncing
+    if (actualSearchTerm !== searchTerm) {
+      // Don't refetch while user is typing
       return;
     }
     fetchData(1, true);
-  }, [debouncedSearchTerm, filterProxy, filterSponsorship]);
+  }, [actualSearchTerm, filterProxy, filterSponsorship]);
+
+  // Handle search execution
+  const handleSearch = () => {
+    setActualSearchTerm(searchTerm);
+    // fetchData will be triggered by the useEffect above
+  };
+
+  // Handle Enter key press
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
 
   const handlePageChange = (page: number) => {
     fetchData(page);
@@ -152,16 +154,17 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
 
   const clearAllFilters = () => {
     setSearchTerm("");
+    setActualSearchTerm("");
     setFilterProxy("all");
     setFilterSponsorship("all");
   };
 
   const hasActiveFilters =
-    searchTerm || filterProxy !== "all" || filterSponsorship !== "all";
+    actualSearchTerm || filterProxy !== "all" || filterSponsorship !== "all";
 
   const getActiveFilterCount = () => {
     return [
-      searchTerm && "search",
+      actualSearchTerm && "search",
       filterProxy !== "all" && "proxy",
       filterSponsorship !== "all" && "sponsorship",
     ].filter(Boolean).length;
@@ -193,140 +196,149 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
 
         {/* Search and Filters */}
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-          <div className="flex flex-col lg:flex-row items-center justify-between space-y-4 lg:space-y-0 lg:space-x-6">
-            {/* Search Bar */}
-            <div className="flex-1 relative max-w-2xl">
-              <Search
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={24}
-              />
-              <input
-                type="text"
-                placeholder="Search by name, contact, or proxy..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white/70 text-lg"
-              />
-            </div>
-
-            {/* Filter Toggle and Add Button */}
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
-                  showFilters || hasActiveFilters
-                    ? "bg-green-600 text-white shadow-lg"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                <Filter size={20} />
-                <span>Filters</span>
-                {hasActiveFilters && (
-                  <span className="bg-white/20 text-xs px-2 py-1 rounded-full">
-                    {getActiveFilterCount()}
-                  </span>
-                )}
-              </button>
-
-              <Link
-                to="/register-sponsor"
-                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                <Plus size={20} />
-                <span>Add New Sponsor</span>
-              </Link>
-            </div>
-          </div>
-
-          {/* Filters Panel */}
-          {showFilters && (
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Proxy Filter */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    <Link2 size={16} className="inline mr-1" />
-                    Proxy/Middleman
-                  </label>
-                  <select
-                    value={filterProxy}
-                    onChange={(e) => setFilterProxy(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
-                  >
-                    <option value="all">All</option>
-                    <option value="none">No Proxy (Direct Contact)</option>
-                    {proxies.map((proxy) => (
-                      <option key={proxy.id} value={proxy.id.toString()}>
-                        {proxy.fullName} ({proxy.role})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Sponsorship Status Filter */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    <Heart size={16} className="inline mr-1" />
-                    Sponsorship Status
-                  </label>
-                  <select
-                    value={filterSponsorship}
-                    onChange={(e) => setFilterSponsorship(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
-                  >
-                    <option value="all">All Sponsors</option>
-                    <option value="active">Has Active Sponsorships</option>
-                    <option value="none">Available for Matching</option>
-                  </select>
-                </div>
-
-                {/* Clear Filters Button */}
-                <div className="flex items-end">
-                  <button
-                    onClick={clearAllFilters}
-                    disabled={!hasActiveFilters}
-                    className="w-full flex items-center justify-center space-x-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
-                  >
-                    <X size={16} />
-                    <span>Clear All</span>
-                  </button>
-                </div>
+          <div className="space-y-6">
+            {/* Search Bar with Manual Trigger */}
+            <div className="flex items-center justify-between space-x-4">
+              <div className="flex-1 relative max-w-2xl">
+                <Search
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  size={24}
+                />
+                <input
+                  type="text"
+                  placeholder="Search by name, contact, or proxy..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className="w-full pl-12 pr-24 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white/70 text-lg"
+                />
+                <button
+                  onClick={handleSearch}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm font-medium"
+                >
+                  Search
+                </button>
               </div>
 
-              {/* Active Filters Display */}
-              {hasActiveFilters && (
-                <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
-                  <div className="flex items-center space-x-2 flex-wrap">
-                    <span className="text-sm font-medium text-green-700">
-                      Active filters:
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+                    showFilters || hasActiveFilters
+                      ? "bg-green-600 text-white shadow-lg"
+                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <Filter size={20} />
+                  <span>Filters</span>
+                  {hasActiveFilters && (
+                    <span className="bg-white/20 text-xs px-2 py-1 rounded-full">
+                      {getActiveFilterCount()}
                     </span>
-                    {searchTerm && (
-                      <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                        Search: "{searchTerm}"
-                      </span>
-                    )}
-                    {filterProxy !== "all" && (
-                      <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                        Proxy:{" "}
-                        {filterProxy === "none"
-                          ? "No Proxy"
-                          : proxies.find((p) => p.id.toString() === filterProxy)
-                              ?.fullName}
-                      </span>
-                    )}
-                    {filterSponsorship !== "all" && (
-                      <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                        Status:{" "}
-                        {filterSponsorship === "active"
-                          ? "Has Sponsorships"
-                          : "Available"}
-                      </span>
-                    )}
+                  )}
+                </button>
+
+                <Link
+                  to="/register-sponsor"
+                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:scale-105 shadow-lg whitespace-nowrap"
+                >
+                  <Plus size={20} />
+                  <span>Add New Sponsor</span>
+                </Link>
+              </div>
+            </div>
+
+            {/* Filters Panel */}
+            {showFilters && (
+              <div className="bg-white/60 rounded-2xl p-6 border border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Proxy Filter */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700">
+                      <Link2 size={16} className="inline mr-1" />
+                      Proxy/Middleman
+                    </label>
+                    <select
+                      value={filterProxy}
+                      onChange={(e) => setFilterProxy(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
+                    >
+                      <option value="all">All</option>
+                      <option value="none">No Proxy (Direct Contact)</option>
+                      {proxies.map((proxy) => (
+                        <option key={proxy.id} value={proxy.id.toString()}>
+                          {proxy.fullName} ({proxy.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sponsorship Status Filter */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700">
+                      <Heart size={16} className="inline mr-1" />
+                      Sponsorship Status
+                    </label>
+                    <select
+                      value={filterSponsorship}
+                      onChange={(e) => setFilterSponsorship(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
+                    >
+                      <option value="all">All Sponsors</option>
+                      <option value="active">Has Active Sponsorships</option>
+                      <option value="none">Available for Matching</option>
+                    </select>
+                  </div>
+
+                  {/* Clear Filters Button */}
+                  <div className="flex items-end">
+                    <button
+                      onClick={clearAllFilters}
+                      disabled={!hasActiveFilters}
+                      className="w-full flex items-center justify-center space-x-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm"
+                    >
+                      <X size={16} />
+                      <span>Clear All</span>
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+
+                {/* Active Filters Display */}
+                {hasActiveFilters && (
+                  <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
+                    <div className="flex items-center space-x-2 flex-wrap">
+                      <span className="text-sm font-medium text-green-700">
+                        Active filters:
+                      </span>
+                      {actualSearchTerm && (
+                        <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                          Search: "{actualSearchTerm}"
+                        </span>
+                      )}
+                      {filterProxy !== "all" && (
+                        <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                          Proxy:{" "}
+                          {filterProxy === "none"
+                            ? "No Proxy"
+                            : proxies.find(
+                                (p) => p.id.toString() === filterProxy
+                              )?.fullName}
+                        </span>
+                      )}
+                      {filterSponsorship !== "all" && (
+                        <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                          Status:{" "}
+                          {filterSponsorship === "active"
+                            ? "Has Sponsorships"
+                            : "Available"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Sponsors List */}
