@@ -170,7 +170,8 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
     ].filter(Boolean).length;
   };
 
-  if (loading && sponsors.length === 0) {
+  // Only show full page loader on initial load (when we have no data at all)
+  if (loading && sponsors.length === 0 && pagination.totalCount === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex justify-center items-center">
         <div className="flex flex-col items-center space-y-4">
@@ -342,13 +343,18 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
         </div>
 
         {/* Sponsors List */}
-        {sponsors.length > 0 ? (
+        {sponsors.length > 0 || (loading && pagination.totalCount > 0) ? (
           <div className="space-y-6">
             <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 overflow-hidden relative">
-              {/* Loading Overlay */}
+              {/* Loading Overlay - Only shows when refreshing data, not on initial load */}
               {loading && (
-                <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-200 border-t-green-600"></div>
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-10 flex items-center justify-center">
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-200 border-t-green-600"></div>
+                    <p className="text-gray-700 font-medium">
+                      Refreshing sponsors...
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -593,14 +599,20 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
               </div>
             </div>
 
-            {/* Pagination */}
-            <Pagination
-              pagination={pagination}
-              onPageChange={handlePageChange}
-              loading={loading}
-            />
+            {/* Pagination - Show even when loading */}
+            <div
+              className={`transition-opacity duration-200 ${
+                loading ? "opacity-60" : "opacity-100"
+              }`}
+            >
+              <Pagination
+                pagination={pagination}
+                onPageChange={handlePageChange}
+                loading={loading}
+              />
+            </div>
           </div>
-        ) : (
+        ) : !loading ? (
           /* Empty State */
           <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-12 text-center">
             <div className="text-8xl mb-6">🤝</div>
@@ -633,10 +645,14 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
               </Link>
             </div>
           </div>
-        )}
+        ) : null}
 
-        {/* Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Statistics - Show with reduced opacity when loading */}
+        <div
+          className={`grid grid-cols-1 md:grid-cols-4 gap-6 transition-opacity duration-200 ${
+            loading ? "opacity-60" : "opacity-100"
+          }`}
+        >
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
             <div className="flex items-center space-x-3">
               <Users className="text-green-600" size={28} />
@@ -703,9 +719,13 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
           </div>
         </div>
 
-        {/* Filter Summary */}
+        {/* Filter Summary - Show with reduced opacity when loading */}
         {hasActiveFilters && (
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200">
+          <div
+            className={`bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200 transition-opacity duration-200 ${
+              loading ? "opacity-60" : "opacity-100"
+            }`}
+          >
             <div className="text-center">
               <h3 className="text-lg font-semibold text-green-900 mb-2">
                 Filter Results Summary

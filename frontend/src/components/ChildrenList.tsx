@@ -18,6 +18,11 @@ interface Child {
   class: string;
   isSponsored: boolean;
   dateEnteredRegister: string;
+  lastProfileUpdate: string;
+  // Image fields
+  photoBase64?: string;
+  photoMimeType?: string;
+  photoDataUrl?: string;
   school: {
     id: number;
     name: string;
@@ -109,11 +114,13 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
     async (page: number = 1, resetPage: boolean = false) => {
       setLoading(true);
       try {
+        console.log("Fetching data with search term:", actualSearchTerm); // Debug log
+
         // Build query parameters
         const params = new URLSearchParams({
           page: resetPage ? "1" : page.toString(),
           limit: "20",
-          search: actualSearchTerm, // Use actualSearchTerm instead of searchTerm
+          search: actualSearchTerm.trim(), // Ensure we trim the search term
         });
 
         if (filterSponsored !== "all") {
@@ -132,6 +139,8 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
           params.append("proxyId", filterProxy);
         }
 
+        console.log("API URL:", `/api/children?${params.toString()}`); // Debug log
+
         const [childrenRes, schoolsRes, sponsorsRes, proxiesRes] =
           await Promise.all([
             fetch(`/api/children?${params.toString()}`),
@@ -140,54 +149,72 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
             fetch("/api/proxies"),
           ]);
 
+        if (!childrenRes.ok) {
+          throw new Error(
+            `API Error: ${childrenRes.status} ${childrenRes.statusText}`
+          );
+        }
+
         const childrenData = await childrenRes.json();
         const schoolsData = await schoolsRes.json();
         const sponsorsData = await sponsorsRes.json();
         const proxiesData = await proxiesRes.json();
 
+        console.log("Received children data:", childrenData); // Debug log
+
         setChildren(childrenData.data || []);
-        setPagination(childrenData.pagination || pagination);
+        setPagination(
+          childrenData.pagination || {
+            currentPage: 1,
+            totalPages: 1,
+            totalCount: 0,
+            limit: 20,
+            hasNextPage: false,
+            hasPrevPage: false,
+            startIndex: 1,
+            endIndex: 1,
+          }
+        );
         setSchools(schoolsData);
         setSponsors(sponsorsData.data || sponsorsData);
         setProxies(proxiesData);
       } catch (error) {
         console.error("Error fetching data:", error);
+        // Set empty state on error
+        setChildren([]);
+        setPagination({
+          currentPage: 1,
+          totalPages: 1,
+          totalCount: 0,
+          limit: 20,
+          hasNextPage: false,
+          hasPrevPage: false,
+          startIndex: 1,
+          endIndex: 1,
+        });
       } finally {
         setLoading(false);
       }
     },
     [
-      actualSearchTerm, // Changed from searchTerm to actualSearchTerm
+      actualSearchTerm,
       filterSponsored,
       filterGender,
       filterSchool,
       filterSponsor,
       filterProxy,
-      pagination,
     ]
   );
 
   // Initial data fetch
   useEffect(() => {
     fetchData(1, true);
-  }, []);
-
-  // Refetch when filters change (but NOT when searchTerm changes)
-  useEffect(() => {
-    fetchData(1, true);
-  }, [
-    actualSearchTerm, // Only when actualSearchTerm changes
-    filterSponsored,
-    filterGender,
-    filterSchool,
-    filterSponsor,
-    filterProxy,
-  ]);
+  }, [fetchData]);
 
   // Handle search execution
   const handleSearch = () => {
-    setActualSearchTerm(searchTerm);
-    // fetchData will be triggered by the useEffect above
+    console.log("Search triggered with term:", searchTerm); // Debug log
+    setActualSearchTerm(searchTerm.trim());
   };
 
   const handlePageChange = (page: number) => {
@@ -225,7 +252,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
   };
 
   const hasActiveFilters =
-    actualSearchTerm || // Use actualSearchTerm here too
+    actualSearchTerm.trim() !== "" ||
     filterSponsored !== "all" ||
     filterGender !== "all" ||
     filterSchool !== "all" ||
@@ -234,7 +261,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
 
   const getActiveFilterCount = () => {
     return [
-      actualSearchTerm && "search", // Use actualSearchTerm here too
+      actualSearchTerm.trim() !== "" && "search",
       filterSponsored !== "all" && "status",
       filterGender !== "all" && "gender",
       filterSchool !== "all" && "school",
@@ -243,7 +270,8 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
     ].filter(Boolean).length;
   };
 
-  if (loading && children.length === 0) {
+  // Only show full page loader on initial load (when we have no data at all)
+  if (loading && children.length === 0 && pagination.totalCount === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex justify-center items-center">
         <div className="flex flex-col items-center space-y-4">
@@ -257,8 +285,29 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
       <div className="max-w-7xl mx-auto px-4 space-y-8">
-        {/* Statistics Bar */}
-        <ChildrenStatistics children={children} pagination={pagination} />
+        {/* Debug Info - Remove this in production */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
+            <strong>Debug Info:</strong>
+            <br />
+            Search Term: "{searchTerm}"<br />
+            Actual Search Term: "{actualSearchTerm}"<br />
+            Children Count: {children.length}
+            <br />
+            Total Count: {pagination.totalCount}
+            <br />
+            Loading: {loading.toString()}
+          </div>
+        )}
+
+        {/* Statistics Bar - Show with reduced opacity when loading */}
+        <div
+          className={`transition-opacity duration-200 ${
+            loading ? "opacity-60" : "opacity-100"
+          }`}
+        >
+          <ChildrenStatistics children={children} pagination={pagination} />
+        </div>
 
         {/* Search and Filters */}
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
@@ -297,17 +346,35 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
               proxies={proxies}
               clearAllFilters={clearAllFilters}
             />
+
+            <ActiveFiltersDisplay
+              hasActiveFilters={hasActiveFilters}
+              searchTerm={actualSearchTerm} // Use actualSearchTerm for display
+              filterSponsored={filterSponsored}
+              filterGender={filterGender}
+              filterSchool={filterSchool}
+              filterSponsor={filterSponsor}
+              filterProxy={filterProxy}
+              schools={schools}
+              sponsors={sponsors}
+              proxies={proxies}
+            />
           </div>
         </div>
 
         {/* Children Table/Cards */}
-        {children.length > 0 ? (
+        {children.length > 0 || (loading && pagination.totalCount > 0) ? (
           <div className="space-y-6">
             <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 overflow-hidden relative">
-              {/* Loading Overlay */}
+              {/* Loading Overlay - Only shows when refreshing data */}
               {loading && (
-                <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
+                <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-10 flex items-center justify-center">
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
+                    <p className="text-gray-700 font-medium">
+                      Refreshing children...
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -326,27 +393,39 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
               />
             </div>
 
-            {/* Pagination */}
-            <Pagination
-              pagination={pagination}
-              onPageChange={handlePageChange}
-              loading={loading}
-            />
+            {/* Pagination - Show even when loading with reduced opacity */}
+            <div
+              className={`transition-opacity duration-200 ${
+                loading ? "opacity-60" : "opacity-100"
+              }`}
+            >
+              <Pagination
+                pagination={pagination}
+                onPageChange={handlePageChange}
+                loading={loading}
+              />
+            </div>
           </div>
-        ) : (
-          /* Empty State */
+        ) : !loading ? (
+          /* Empty State - Only show when not loading */
           <EmptyState
             hasActiveFilters={hasActiveFilters}
             clearAllFilters={clearAllFilters}
           />
-        )}
+        ) : null}
 
-        {/* Filter Summary */}
-        <FilterSummary
-          hasActiveFilters={hasActiveFilters}
-          children={children}
-          pagination={pagination}
-        />
+        {/* Filter Summary - Show with reduced opacity when loading */}
+        <div
+          className={`transition-opacity duration-200 ${
+            loading ? "opacity-60" : "opacity-100"
+          }`}
+        >
+          <FilterSummary
+            hasActiveFilters={hasActiveFilters}
+            children={children}
+            pagination={pagination}
+          />
+        </div>
       </div>
     </div>
   );
