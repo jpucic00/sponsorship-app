@@ -11,6 +11,7 @@ interface Child {
   class: string;
   isSponsored: boolean;
   dateEnteredRegister: string;
+  lastProfileUpdate: string; // Added this field
   // Image fields
   photoBase64?: string;
   photoMimeType?: string;
@@ -75,10 +76,13 @@ export const ChildrenTableDesktop: React.FC<ChildrenTableDesktopProps> = ({
               School & Class
             </th>
             <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-              Sponsorship Details
+              Sponsorship Status
             </th>
             <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
               Registration Date
+            </th>
+            <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+              Last Updated
             </th>
             <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
               Actions
@@ -105,7 +109,11 @@ export const ChildrenTableDesktop: React.FC<ChildrenTableDesktopProps> = ({
                         // Fallback to initials on error
                         const target = e.target as HTMLImageElement;
                         target.style.display = "none";
-                        target.nextElementSibling?.classList.remove("hidden");
+                        const nextSibling =
+                          target.nextElementSibling as HTMLElement;
+                        if (nextSibling) {
+                          nextSibling.classList.remove("hidden");
+                        }
                       }}
                     />
                   ) : null}
@@ -156,28 +164,28 @@ export const ChildrenTableDesktop: React.FC<ChildrenTableDesktopProps> = ({
                 </div>
               </td>
 
-              {/* Sponsorship Details */}
+              {/* Sponsorship Status - Updated to be more compact */}
               <td className="px-6 py-4">
                 {child.isSponsored ? (
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                       ✅ Sponsored ({child.sponsorships.length})
                     </span>
-                    {child.sponsorships.slice(0, 2).map((sponsorship, idx) => (
-                      <div key={idx} className="text-xs text-gray-600">
+                    {child.sponsorships.length > 0 && (
+                      <div className="text-xs text-gray-600">
                         <div className="font-medium">
-                          {sponsorship.sponsor.fullName}
+                          {child.sponsorships[0].sponsor.fullName}
                         </div>
-                        {sponsorship.sponsor.proxy && (
+                        {child.sponsorships[0].sponsor.proxy && (
                           <div className="text-purple-600">
-                            via {sponsorship.sponsor.proxy.fullName}
+                            via {child.sponsorships[0].sponsor.proxy.fullName}
                           </div>
                         )}
-                      </div>
-                    ))}
-                    {child.sponsorships.length > 2 && (
-                      <div className="text-xs text-gray-500">
-                        +{child.sponsorships.length - 2} more
+                        {child.sponsorships.length > 1 && (
+                          <div className="text-gray-500">
+                            +{child.sponsorships.length - 1} more
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -203,23 +211,30 @@ export const ChildrenTableDesktop: React.FC<ChildrenTableDesktopProps> = ({
                 </div>
               </td>
 
-              {/* Actions - Removed Edit Button */}
+              {/* Last Updated - New Column */}
               <td className="px-6 py-4">
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => onViewChild(child.id)}
-                    className="flex items-center space-x-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                  >
-                    <Eye size={14} />
-                    <span>View Details</span>
-                  </button>
-                  {!child.isSponsored && (
-                    <button className="flex items-center space-x-1 px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
-                      <Heart size={14} />
-                      <span>Find Sponsor</span>
-                    </button>
-                  )}
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-gray-900">
+                    {formatDateTime(child.lastProfileUpdate)}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {
+                      formatDateTimeWithRelative(child.lastProfileUpdate)
+                        .relative
+                    }
+                  </div>
                 </div>
+              </td>
+
+              {/* Actions - Simplified */}
+              <td className="px-6 py-4">
+                <button
+                  onClick={() => onViewChild(child.id)}
+                  className="flex items-center space-x-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                >
+                  <Eye size={14} />
+                  <span>View Details</span>
+                </button>
               </td>
             </tr>
           ))}

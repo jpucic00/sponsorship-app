@@ -1,5 +1,5 @@
 import React from "react";
-import { GraduationCap, Calendar, Heart, Camera } from "lucide-react";
+import { GraduationCap, Calendar, Heart, Camera, Clock } from "lucide-react";
 import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface Child {
@@ -11,6 +11,7 @@ interface Child {
   class: string;
   isSponsored: boolean;
   dateEnteredRegister: string;
+  lastProfileUpdate: string; // Added this field
   // Image fields
   photoBase64?: string;
   photoMimeType?: string;
@@ -129,6 +130,7 @@ export const ChildrenCardsMobile: React.FC<ChildrenCardsMobileProps> = ({
                 {child.school.name}, {child.school.location}
               </span>
             </div>
+
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Calendar size={16} />
               <div>
@@ -144,6 +146,20 @@ export const ChildrenCardsMobile: React.FC<ChildrenCardsMobileProps> = ({
                 </div>
               </div>
             </div>
+
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Clock size={16} />
+              <div>
+                <span>Updated: </span>
+                <span className="font-medium">
+                  {formatDateTime(child.lastProfileUpdate)}
+                </span>
+                <div className="text-xs text-gray-500">
+                  {formatDateTimeWithRelative(child.lastProfileUpdate).relative}
+                </div>
+              </div>
+            </div>
+
             {child.isSponsored && child.sponsorships.length > 0 && (
               <div className="space-y-1">
                 {child.sponsorships.slice(0, 2).map((sponsorship, idx) => (
@@ -172,19 +188,14 @@ export const ChildrenCardsMobile: React.FC<ChildrenCardsMobileProps> = ({
             )}
           </div>
 
-          {/* Actions - Removed Edit Button */}
-          <div className="flex space-x-2">
+          {/* Actions - Simplified, removed Find Sponsor button */}
+          <div className="flex">
             <button
               onClick={() => onViewChild(child.id)}
               className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-center"
             >
               View Details
             </button>
-            {!child.isSponsored && (
-              <button className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
-                Find Sponsor
-              </button>
-            )}
           </div>
         </div>
       ))}
