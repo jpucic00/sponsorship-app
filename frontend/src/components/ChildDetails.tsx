@@ -19,8 +19,11 @@ import {
   X,
   DollarSign,
   Check,
+  Link2,
+  Search,
 } from "lucide-react";
 import { PhotoGallery } from "./PhotoGallery";
+import { ImageUpload } from "./ImageUpload";
 // Import the date utility functions
 import {
   formatDateTime,
@@ -71,6 +74,7 @@ interface Child {
       proxy?: {
         fullName: string;
         role: string;
+        contact: string;
       };
     };
   }>;
@@ -283,6 +287,15 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
   const [availableSponsors, setAvailableSponsors] = useState<any[]>([]);
   const [imageError, setImageError] = useState(false);
 
+  // Modal search and filter states
+  const [modalSearchTerm, setModalSearchTerm] = useState("");
+  const [modalFilterProxy, setModalFilterProxy] = useState("all");
+  const [modalProxies, setModalProxies] = useState<any[]>([]);
+
+  // Photo upload modal states
+  const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+
   useEffect(() => {
     fetchChildDetails(childId);
     fetchAvailableSponsors();
@@ -322,12 +335,61 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
     fetchChildDetails(childId);
   };
 
+  const handlePhotoUpload = async (
+    imageData: {
+      base64?: string;
+      mimeType?: string;
+      fileName?: string;
+      size?: number;
+    } | null
+  ) => {
+    if (!imageData) return;
+
+    setPhotoUploading(true);
+    try {
+      const response = await fetch(`/api/child-photos/child/${childId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          photoBase64: imageData.base64,
+          mimeType: imageData.mimeType,
+          fileName: imageData.fileName,
+          fileSize: imageData.size,
+          description: "",
+        }),
+      });
+
+      if (response.ok) {
+        await fetchChildDetails(childId);
+        setShowPhotoUpload(false);
+        handleProfilePhotoChange();
+      } else {
+        const error = await response.json();
+        alert(error.error || "Failed to upload photo");
+      }
+    } catch (error) {
+      console.error("Error uploading photo:", error);
+      alert("Failed to upload photo");
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
   const fetchAvailableSponsors = async () => {
     try {
-      const response = await fetch("/api/sponsors");
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableSponsors(data.data || data || []);
+      const [sponsorsRes, proxiesRes] = await Promise.all([
+        fetch("/api/sponsors"),
+        fetch("/api/proxies"),
+      ]);
+
+      if (sponsorsRes.ok && proxiesRes.ok) {
+        const sponsorsData = await sponsorsRes.json();
+        const proxiesData = await proxiesRes.json();
+
+        setAvailableSponsors(sponsorsData.data || sponsorsData || []);
+        setModalProxies(proxiesData);
       }
     } catch (error) {
       console.error("Error fetching sponsors:", error);
@@ -515,7 +577,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
       <div className="max-w-6xl mx-auto px-4">
-        {/* Header - Removed Edit Button */}
+        {/* Header */}
         <div className="mb-8">
           <button
             onClick={onBack}
@@ -660,44 +722,217 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
               </div>
             </div>
 
-            {/* Story - Editable */}
+            {/* Sponsorship Information - Expanded */}
             <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-              <div className="flex items-center space-x-3 mb-6">
-                <FileText className="text-blue-600" size={28} />
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Child's Story
-                </h2>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <Heart className="text-red-500" size={28} />
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Sponsorship Details
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setShowAddSponsor(true)}
+                  className="flex items-center space-x-1 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Plus size={16} />
+                  <span>Add Sponsor</span>
+                </button>
               </div>
 
-              <EditableField
-                label="Story"
-                value={child.story}
-                onSave={(value) => handleFieldUpdate("story", value)}
-                multiline
-                icon={<FileText className="text-blue-600" size={16} />}
-                bgColor="bg-gradient-to-r from-blue-50 to-indigo-50"
-                borderColor="border-blue-200"
-              />
-            </div>
+              {activeSponsors.length > 0 ? (
+                <div className="space-y-6">
+                  {activeSponsors.map((sponsorship) => (
+                    <div
+                      key={sponsorship.id}
+                      className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border-2 border-green-200"
+                    >
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-3">
+                            <UserCheck className="text-green-600" size={20} />
+                            <span className="font-bold text-green-700 text-lg">
+                              Active Sponsor
+                            </span>
+                          </div>
+                          <h3 className="text-xl font-bold text-gray-900 mb-2">
+                            {sponsorship.sponsor.fullName}
+                          </h3>
+                        </div>
+                        <button
+                          onClick={() =>
+                            handleRemoveSponsor(sponsorship.sponsor.id)
+                          }
+                          className="text-red-600 hover:text-red-800 p-2 hover:bg-red-100 rounded-lg transition-colors"
+                          title="End sponsorship"
+                        >
+                          <X size={20} />
+                        </button>
+                      </div>
 
-            {/* Volunteer Comments - Editable */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-              <div className="flex items-center space-x-3 mb-6">
-                <Users className="text-purple-600" size={28} />
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Volunteer Comments
-                </h2>
-              </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        {/* Sponsor Contact */}
+                        <div className="bg-white p-4 rounded-xl border border-green-200">
+                          <div className="flex items-center space-x-2 mb-3">
+                            <Phone className="text-green-600" size={18} />
+                            <span className="font-semibold text-green-700">
+                              Sponsor Contact
+                            </span>
+                          </div>
+                          <p className="text-gray-900 text-sm break-words leading-relaxed">
+                            {sponsorship.sponsor.contact}
+                          </p>
+                        </div>
 
-              <EditableField
-                label="Comments"
-                value={child.comment}
-                onSave={(value) => handleFieldUpdate("comment", value)}
-                multiline
-                icon={<Users className="text-purple-600" size={16} />}
-                bgColor="bg-gradient-to-r from-purple-50 to-pink-50"
-                borderColor="border-purple-200"
-              />
+                        {/* Sponsorship Start Date */}
+                        <div className="bg-white p-4 rounded-xl border border-green-200">
+                          <div className="flex items-center space-x-2 mb-3">
+                            <Calendar className="text-green-600" size={18} />
+                            <span className="font-semibold text-green-700">
+                              Sponsorship Since
+                            </span>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-gray-900 font-medium">
+                              {formatDateTime(sponsorship.startDate)}
+                            </p>
+                            <p className="text-gray-600 text-sm">
+                              {
+                                formatDateTimeWithRelative(
+                                  sponsorship.startDate
+                                ).relative
+                              }
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Monthly Amount */}
+                        {sponsorship.monthlyAmount && (
+                          <div className="bg-white p-4 rounded-xl border border-green-200">
+                            <div className="flex items-center space-x-2 mb-3">
+                              <DollarSign
+                                className="text-green-600"
+                                size={18}
+                              />
+                              <span className="font-semibold text-green-700">
+                                Monthly Contribution
+                              </span>
+                            </div>
+                            <p className="text-gray-900 font-bold text-xl">
+                              ${sponsorship.monthlyAmount}
+                            </p>
+                            {sponsorship.paymentMethod && (
+                              <p className="text-gray-600 text-sm mt-1">
+                                Payment Method: {sponsorship.paymentMethod}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Sponsorship Notes */}
+                        {sponsorship.notes && (
+                          <div className="bg-white p-4 rounded-xl border border-green-200">
+                            <div className="flex items-center space-x-2 mb-3">
+                              <FileText className="text-green-600" size={18} />
+                              <span className="font-semibold text-green-700">
+                                Sponsorship Notes
+                              </span>
+                            </div>
+                            <p className="text-gray-800 text-sm leading-relaxed">
+                              {sponsorship.notes}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Proxy Information */}
+                      {sponsorship.sponsor.proxy && (
+                        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-5 border-2 border-purple-200">
+                          <div className="flex items-center space-x-2 mb-4">
+                            <Link2 className="text-purple-600" size={20} />
+                            <span className="font-bold text-purple-700 text-lg">
+                              Representative/Proxy
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-white p-4 rounded-lg border border-purple-200">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Phone className="text-purple-600" size={16} />
+                                <span className="font-semibold text-purple-700 text-sm">
+                                  Proxy Contact
+                                </span>
+                              </div>
+                              <p className="text-gray-900 text-sm break-words">
+                                {sponsorship.sponsor.proxy.contact}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-8xl mb-6">💝</div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">
+                    This child needs a sponsor
+                  </h3>
+                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                    Help connect this child with a caring sponsor who can
+                    support their education and future.
+                  </p>
+                  <button
+                    onClick={() => setShowAddSponsor(true)}
+                    className="px-8 py-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all transform hover:scale-105 shadow-lg"
+                  >
+                    Find Sponsor
+                  </button>
+                </div>
+              )}
+
+              {/* Previous Sponsors */}
+              {inactiveSponsors.length > 0 && (
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <Clock className="text-gray-600 mr-2" size={20} />
+                    Previous Sponsors ({inactiveSponsors.length})
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {inactiveSponsors.map((sponsorship) => (
+                      <div
+                        key={sponsorship.id}
+                        className="bg-gray-50 p-4 rounded-xl border border-gray-200"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-bold text-gray-900">
+                              {sponsorship.sponsor.fullName}
+                            </p>
+                            {sponsorship.sponsor.proxy && (
+                              <p className="text-purple-600 text-sm">
+                                via {sponsorship.sponsor.proxy.fullName}
+                              </p>
+                            )}
+                            <p className="text-sm text-gray-600 mt-2">
+                              {formatDateTime(sponsorship.startDate)} -{" "}
+                              {sponsorship.endDate
+                                ? formatDateTime(sponsorship.endDate)
+                                : "Ended"}
+                            </p>
+                            {sponsorship.monthlyAmount && (
+                              <p className="text-gray-700 font-medium text-sm mt-1">
+                                ${sponsorship.monthlyAmount}/month
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Family Information - Editable */}
@@ -803,179 +1038,50 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
               childId={child.id}
               childName={`${child.firstName} ${child.lastName}`}
               onProfilePhotoChange={handleProfilePhotoChange}
+              onAddPhotoClick={() => setShowPhotoUpload(true)}
             />
           </div>
 
-          {/* Sidebar - Sponsorship and other info */}
+          {/* Sidebar */}
           <div className="space-y-8">
-            {/* Sponsorship Info */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-3">
-                  <Heart className="text-red-500" size={28} />
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Sponsorships
-                  </h2>
-                </div>
-                <button
-                  onClick={() => setShowAddSponsor(true)}
-                  className="flex items-center space-x-1 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <Plus size={16} />
-                  <span>Add Sponsor</span>
-                </button>
+            {/* Story - Editable */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <FileText className="text-blue-600" size={24} />
+                <h3 className="text-lg font-bold text-gray-900">
+                  Child's Story
+                </h3>
               </div>
 
-              {activeSponsors.length > 0 ? (
-                <div className="space-y-4">
-                  {activeSponsors.map((sponsorship) => (
-                    <div
-                      key={sponsorship.id}
-                      className="bg-green-50 rounded-2xl p-6 border border-green-200"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <div className="flex items-center space-x-2 mb-2">
-                            <UserCheck className="text-green-600" size={18} />
-                            <span className="font-semibold text-green-700">
-                              Active Sponsor
-                            </span>
-                          </div>
-                          <p className="text-gray-900 font-bold">
-                            {sponsorship.sponsor.fullName}
-                          </p>
-                          {sponsorship.sponsor.proxy && (
-                            <p className="text-purple-600 text-sm mt-1">
-                              Via: {sponsorship.sponsor.proxy.fullName} (
-                              {sponsorship.sponsor.proxy.role})
-                            </p>
-                          )}
-                        </div>
-                        <button
-                          onClick={() =>
-                            handleRemoveSponsor(sponsorship.sponsor.id)
-                          }
-                          className="text-red-600 hover:text-red-800 p-1"
-                          title="End sponsorship"
-                        >
-                          <X size={18} />
-                        </button>
-                      </div>
+              <EditableField
+                label="Story"
+                value={child.story}
+                onSave={(value) => handleFieldUpdate("story", value)}
+                multiline
+                icon={<FileText className="text-blue-600" size={16} />}
+                bgColor="bg-gradient-to-r from-blue-50 to-indigo-50"
+                borderColor="border-blue-200"
+              />
+            </div>
 
-                      <div className="grid grid-cols-1 gap-3">
-                        <div className="bg-white p-3 rounded-lg border border-green-200">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <Calendar className="text-green-600" size={16} />
-                            <span className="text-sm font-semibold text-green-700">
-                              Since
-                            </span>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-gray-900 font-medium">
-                              {formatDateTime(sponsorship.startDate)}
-                            </p>
-                            <p className="text-gray-600 text-sm">
-                              {
-                                formatDateTimeWithRelative(
-                                  sponsorship.startDate
-                                ).relative
-                              }
-                            </p>
-                          </div>
-                        </div>
+            {/* Volunteer Comments - Editable */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <Users className="text-purple-600" size={24} />
+                <h3 className="text-lg font-bold text-gray-900">
+                  Volunteer Comments
+                </h3>
+              </div>
 
-                        {sponsorship.monthlyAmount && (
-                          <div className="bg-white p-3 rounded-lg border border-green-200">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <DollarSign
-                                className="text-green-600"
-                                size={16}
-                              />
-                              <span className="text-sm font-semibold text-green-700">
-                                Monthly Amount
-                              </span>
-                            </div>
-                            <p className="text-gray-900 font-bold">
-                              ${sponsorship.monthlyAmount}
-                            </p>
-                            {sponsorship.paymentMethod && (
-                              <p className="text-gray-600 text-sm">
-                                via {sponsorship.paymentMethod}
-                              </p>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="bg-white p-3 rounded-lg border border-green-200">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <Phone className="text-green-600" size={16} />
-                            <span className="text-sm font-semibold text-green-700">
-                              Contact
-                            </span>
-                          </div>
-                          <p className="text-gray-900 text-sm break-words">
-                            {sponsorship.sponsor.contact}
-                          </p>
-                        </div>
-
-                        {sponsorship.notes && (
-                          <div className="bg-white p-3 rounded-lg border border-green-200">
-                            <div className="flex items-center space-x-2 mb-1">
-                              <FileText className="text-green-600" size={16} />
-                              <span className="text-sm font-semibold text-green-700">
-                                Notes
-                              </span>
-                            </div>
-                            <p className="text-gray-800 text-sm">
-                              {sponsorship.notes}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="text-6xl mb-4">💝</div>
-                  <p className="text-gray-600 mb-4">
-                    This child needs a sponsor
-                  </p>
-                  <button
-                    onClick={() => setShowAddSponsor(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all"
-                  >
-                    Find Sponsor
-                  </button>
-                </div>
-              )}
-
-              {/* Previous Sponsors */}
-              {inactiveSponsors.length > 0 && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    Previous Sponsors ({inactiveSponsors.length})
-                  </h3>
-                  <div className="space-y-2">
-                    {inactiveSponsors.map((sponsorship) => (
-                      <div
-                        key={sponsorship.id}
-                        className="bg-gray-50 p-3 rounded-lg border border-gray-200"
-                      >
-                        <p className="font-medium text-gray-900">
-                          {sponsorship.sponsor.fullName}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {formatDateTime(sponsorship.startDate)} -{" "}
-                          {sponsorship.endDate
-                            ? formatDateTime(sponsorship.endDate)
-                            : "Ended"}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <EditableField
+                label="Comments"
+                value={child.comment}
+                onSave={(value) => handleFieldUpdate("comment", value)}
+                multiline
+                icon={<Users className="text-purple-600" size={16} />}
+                bgColor="bg-gradient-to-r from-purple-50 to-pink-50"
+                borderColor="border-purple-200"
+              />
             </div>
 
             {/* Registration & Last Updated */}
@@ -1028,56 +1134,319 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
         {/* Add Sponsor Modal */}
         {showAddSponsor && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-bold text-gray-900">
                   Add Sponsor to {child.firstName} {child.lastName}
                 </h3>
                 <button
-                  onClick={() => setShowAddSponsor(false)}
+                  onClick={() => {
+                    setShowAddSponsor(false);
+                    setModalSearchTerm("");
+                    setModalFilterProxy("all");
+                  }}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <X size={24} />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                {availableSponsors
-                  .filter(
-                    (sponsor) =>
-                      !activeSponsors.some((s) => s.sponsor.id === sponsor.id)
-                  )
-                  .map((sponsor) => (
-                    <div
-                      key={sponsor.id}
-                      className="p-4 border border-gray-200 rounded-xl hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all"
-                      onClick={() => handleAddSponsor(sponsor.id)}
+              {/* Search and Filter Controls */}
+              <div className="mb-6 space-y-4">
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    size={20}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Search sponsors by name or contact..."
+                    value={modalSearchTerm}
+                    onChange={(e) => setModalSearchTerm(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white/70"
+                  />
+                </div>
+
+                {/* Filter Controls */}
+                <div className="flex items-center space-x-4">
+                  {/* Proxy Filter */}
+                  <div className="flex-1">
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      <Link2 size={14} className="inline mr-1" />
+                      Filter by Proxy/Middleman
+                    </label>
+                    <select
+                      value={modalFilterProxy}
+                      onChange={(e) => setModalFilterProxy(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
                     >
-                      <h4 className="font-bold text-gray-900">
-                        {sponsor.fullName}
-                      </h4>
-                      <p className="text-gray-600 text-sm mt-1">
-                        {sponsor.contact}
-                      </p>
-                      {sponsor.proxy && (
-                        <p className="text-purple-600 text-sm mt-1">
-                          Via: {sponsor.proxy.fullName} ({sponsor.proxy.role})
-                        </p>
+                      <option value="all">All Sponsors</option>
+                      <option value="none">No Proxy (Direct Contact)</option>
+                      {modalProxies.map((proxy) => (
+                        <option key={proxy.id} value={proxy.id.toString()}>
+                          {proxy.fullName} ({proxy.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Clear Filters */}
+                  {(modalSearchTerm || modalFilterProxy !== "all") && (
+                    <div className="flex items-end">
+                      <button
+                        onClick={() => {
+                          setModalSearchTerm("");
+                          setModalFilterProxy("all");
+                        }}
+                        className="flex items-center space-x-1 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 text-sm"
+                      >
+                        <X size={14} />
+                        <span>Clear</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Active Filters Display */}
+                {(modalSearchTerm || modalFilterProxy !== "all") && (
+                  <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                    <div className="flex items-center space-x-2 flex-wrap">
+                      <span className="text-sm font-medium text-green-700">
+                        Active filters:
+                      </span>
+                      {modalSearchTerm && (
+                        <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                          Search: "{modalSearchTerm}"
+                        </span>
+                      )}
+                      {modalFilterProxy !== "all" && (
+                        <span className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                          Proxy:{" "}
+                          {modalFilterProxy === "none"
+                            ? "No Proxy"
+                            : modalProxies.find(
+                                (p) => p.id.toString() === modalFilterProxy
+                              )?.fullName}
+                        </span>
                       )}
                     </div>
-                  ))}
+                  </div>
+                )}
               </div>
 
-              {availableSponsors.filter(
-                (sponsor) =>
-                  !activeSponsors.some((s) => s.sponsor.id === sponsor.id)
-              ).length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <p>No available sponsors found</p>
-                  <p className="text-sm mt-2">
-                    All sponsors are already sponsoring this child or no
-                    sponsors exist.
+              {/* Sponsors List */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="space-y-3">
+                  {(() => {
+                    // Filter available sponsors
+                    let filteredSponsors = availableSponsors.filter(
+                      (sponsor) =>
+                        !activeSponsors.some((s) => s.sponsor.id === sponsor.id)
+                    );
+
+                    // Apply search filter
+                    if (modalSearchTerm) {
+                      filteredSponsors = filteredSponsors.filter(
+                        (sponsor) =>
+                          sponsor.fullName
+                            .toLowerCase()
+                            .includes(modalSearchTerm.toLowerCase()) ||
+                          sponsor.contact
+                            .toLowerCase()
+                            .includes(modalSearchTerm.toLowerCase())
+                      );
+                    }
+
+                    // Apply proxy filter
+                    if (modalFilterProxy !== "all") {
+                      if (modalFilterProxy === "none") {
+                        filteredSponsors = filteredSponsors.filter(
+                          (sponsor) => !sponsor.proxy
+                        );
+                      } else {
+                        filteredSponsors = filteredSponsors.filter(
+                          (sponsor) =>
+                            sponsor.proxy &&
+                            sponsor.proxy.id.toString() === modalFilterProxy
+                        );
+                      }
+                    }
+
+                    if (filteredSponsors.length === 0) {
+                      return (
+                        <div className="text-center py-12 text-gray-500">
+                          <Users
+                            size={64}
+                            className="mx-auto mb-4 opacity-50"
+                          />
+                          {modalSearchTerm || modalFilterProxy !== "all" ? (
+                            <>
+                              <p className="text-lg">
+                                No sponsors match your filters
+                              </p>
+                              <p className="text-sm mt-2">
+                                Try adjusting your search or filters above.
+                              </p>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-lg">
+                                No available sponsors found
+                              </p>
+                              <p className="text-sm mt-2">
+                                All sponsors are already sponsoring this child
+                                or no sponsors exist.
+                              </p>
+                            </>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    return filteredSponsors.map((sponsor) => (
+                      <div
+                        key={sponsor.id}
+                        className="p-4 border border-gray-200 rounded-xl hover:border-green-300 hover:bg-green-50 cursor-pointer transition-all duration-200 transform hover:scale-[1.02]"
+                        onClick={() => handleAddSponsor(sponsor.id)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-bold text-gray-900 text-lg">
+                              {sponsor.fullName}
+                            </h4>
+                            <p className="text-gray-600 text-sm mt-1 break-words">
+                              {sponsor.contact}
+                            </p>
+                            {sponsor.proxy ? (
+                              <div className="mt-2 bg-purple-50 p-2 rounded-lg border border-purple-200">
+                                <p className="text-purple-600 text-sm font-medium">
+                                  Via: {sponsor.proxy.fullName} (
+                                  {sponsor.proxy.role})
+                                </p>
+                                {sponsor.proxy.contact && (
+                                  <p className="text-purple-500 text-xs mt-1">
+                                    Proxy Contact: {sponsor.proxy.contact}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="mt-2 bg-blue-50 p-2 rounded-lg border border-blue-200">
+                                <p className="text-blue-600 text-sm font-medium">
+                                  Direct Contact (No Proxy)
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          <div className="ml-4 flex-shrink-0">
+                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                              <Plus className="text-green-600" size={16} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Results Count */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600 text-center">
+                  Showing{" "}
+                  {(() => {
+                    let filteredSponsors = availableSponsors.filter(
+                      (sponsor) =>
+                        !activeSponsors.some((s) => s.sponsor.id === sponsor.id)
+                    );
+
+                    if (modalSearchTerm) {
+                      filteredSponsors = filteredSponsors.filter(
+                        (sponsor) =>
+                          sponsor.fullName
+                            .toLowerCase()
+                            .includes(modalSearchTerm.toLowerCase()) ||
+                          sponsor.contact
+                            .toLowerCase()
+                            .includes(modalSearchTerm.toLowerCase())
+                      );
+                    }
+
+                    if (modalFilterProxy !== "all") {
+                      if (modalFilterProxy === "none") {
+                        filteredSponsors = filteredSponsors.filter(
+                          (sponsor) => !sponsor.proxy
+                        );
+                      } else {
+                        filteredSponsors = filteredSponsors.filter(
+                          (sponsor) =>
+                            sponsor.proxy &&
+                            sponsor.proxy.id.toString() === modalFilterProxy
+                        );
+                      }
+                    }
+
+                    return filteredSponsors.length;
+                  })()}
+                  available sponsors
+                  {(modalSearchTerm || modalFilterProxy !== "all") && (
+                    <span className="text-green-600"> (filtered)</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Photo Upload Modal - Page Level */}
+        {showPhotoUpload && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">
+                  Add New Photo for {child.firstName} {child.lastName}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowPhotoUpload(false);
+                    setPhotoUploading(false);
+                  }}
+                  disabled={photoUploading}
+                  className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              {photoUploading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-t-purple-600 mb-4"></div>
+                  <p className="text-gray-600 font-medium">
+                    Uploading photo...
                   </p>
+                  <p className="text-gray-500 text-sm mt-2">
+                    This will become the new profile photo
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-purple-50 p-4 rounded-xl border border-purple-200">
+                    <p className="text-purple-700 font-medium text-sm">
+                      📸 The latest uploaded photo will automatically become the
+                      profile picture
+                    </p>
+                  </div>
+                  <ImageUpload
+                    value={undefined}
+                    onChange={handlePhotoUpload}
+                    maxSize={5}
+                    acceptedTypes={[
+                      "image/jpeg",
+                      "image/png",
+                      "image/jpg",
+                      "image/webp",
+                    ]}
+                  />
                 </div>
               )}
             </div>

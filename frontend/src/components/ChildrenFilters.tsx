@@ -126,9 +126,14 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row items-center justify-between space-y-4 lg:space-y-0 lg:space-x-6">
-      {/* Filter Toggle */}
-      <div className="flex items-center space-x-4">
+    <div className="flex flex-col lg:flex-row items-center justify-between space-y-4 lg:space-y-0">
+      {/* Main row with increased spacing when filters are closed */}
+      <div
+        className={`flex items-center ${
+          showFilters ? "space-x-4" : "space-x-12"
+        }`}
+      >
+        {/* Filter Toggle */}
         <button
           onClick={() => setShowFilters(!showFilters)}
           className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${

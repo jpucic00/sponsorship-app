@@ -7,12 +7,10 @@ import {
   Eye,
   Edit,
   Check,
-  Upload,
   Clock,
   Star,
   AlertTriangle,
 } from "lucide-react";
-import { ImageUpload } from "./ImageUpload";
 import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface Photo {
@@ -31,16 +29,17 @@ interface PhotoGalleryProps {
   childId: number;
   childName: string;
   onProfilePhotoChange?: () => void;
+  onAddPhotoClick?: () => void;
 }
 
 export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   childId,
   childName,
   onProfilePhotoChange,
+  onAddPhotoClick,
 }) => {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddPhoto, setShowAddPhoto] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [editingDescription, setEditingDescription] = useState<number | null>(
     null
@@ -49,7 +48,6 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(
     null
   );
-  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchPhotos();
@@ -71,48 +69,6 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
       console.error("Error fetching photos:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleAddPhoto = async (
-    imageData: {
-      base64?: string;
-      mimeType?: string;
-      fileName?: string;
-      size?: number;
-    } | null
-  ) => {
-    if (!imageData) return;
-
-    setUploading(true);
-    try {
-      const response = await fetch(`/api/child-photos/child/${childId}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          photoBase64: imageData.base64,
-          mimeType: imageData.mimeType,
-          fileName: imageData.fileName,
-          fileSize: imageData.size,
-          description: "",
-        }),
-      });
-
-      if (response.ok) {
-        await fetchPhotos();
-        setShowAddPhoto(false);
-        onProfilePhotoChange?.();
-      } else {
-        const error = await response.json();
-        alert(error.error || "Failed to upload photo");
-      }
-    } catch (error) {
-      console.error("Error uploading photo:", error);
-      alert("Failed to upload photo");
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -203,9 +159,8 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
           </div>
         </div>
         <button
-          onClick={() => setShowAddPhoto(true)}
-          disabled={uploading}
-          className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          onClick={() => onAddPhotoClick?.()}
+          className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors"
         >
           <Plus size={20} />
           <span>Add Photo</span>
@@ -246,58 +201,70 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
                 />
               </div>
 
-              {/* Action Overlay */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-2">
-                <button
-                  onClick={() => setSelectedPhoto(photo)}
-                  className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
-                  title="View full size"
-                >
-                  <Eye size={18} />
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingDescription(photo.id);
-                    setTempDescription(photo.description || "");
-                  }}
-                  className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
-                  title="Edit description"
-                >
-                  <Edit size={18} />
-                </button>
-                <button
-                  onClick={() => setShowDeleteConfirm(photo.id)}
-                  className="p-2 bg-red-500/80 backdrop-blur-sm rounded-full text-white hover:bg-red-600/80 transition-colors"
-                  title="Delete photo"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
+              {/* Action Overlay - Only show when NOT editing description */}
+              {editingDescription !== photo.id && (
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center space-x-2">
+                  <button
+                    onClick={() => setSelectedPhoto(photo)}
+                    className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
+                    title="View full size"
+                  >
+                    <Eye size={18} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditingDescription(photo.id);
+                      setTempDescription(photo.description || "");
+                    }}
+                    className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
+                    title="Edit description"
+                  >
+                    <Edit size={18} />
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(photo.id)}
+                    className="p-2 bg-red-500/80 backdrop-blur-sm rounded-full text-white hover:bg-red-600/80 transition-colors"
+                    title="Delete photo"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              )}
 
               {/* Photo Info */}
               <div className="p-4">
                 {/* Description */}
                 {editingDescription === photo.id ? (
-                  <div className="space-y-2">
+                  <div
+                    className="space-y-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <textarea
                       value={tempDescription}
                       onChange={(e) => setTempDescription(e.target.value)}
                       placeholder="Add a description..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
                       rows={2}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                      onFocus={(e) => e.stopPropagation()}
                     />
                     <div className="flex space-x-2">
                       <button
-                        onClick={() =>
-                          handleUpdateDescription(photo.id, tempDescription)
-                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUpdateDescription(photo.id, tempDescription);
+                        }}
                         className="flex items-center space-x-1 px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700"
                       >
                         <Check size={12} />
                         <span>Save</span>
                       </button>
                       <button
-                        onClick={() => setEditingDescription(null)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingDescription(null);
+                        }}
                         className="flex items-center space-x-1 px-3 py-1 bg-gray-600 text-white text-xs rounded-lg hover:bg-gray-700"
                       >
                         <X size={12} />
@@ -353,62 +320,12 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
             Add the first photo of {childName} to get started
           </p>
           <button
-            onClick={() => setShowAddPhoto(true)}
+            onClick={() => onAddPhotoClick?.()}
             className="inline-flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors"
           >
             <Plus size={20} />
             <span>Add First Photo</span>
           </button>
-        </div>
-      )}
-
-      {/* Add Photo Modal */}
-      {showAddPhoto && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">
-                Add New Photo for {childName}
-              </h3>
-              <button
-                onClick={() => setShowAddPhoto(false)}
-                disabled={uploading}
-                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            {uploading ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-t-purple-600 mb-4"></div>
-                <p className="text-gray-600 font-medium">Uploading photo...</p>
-                <p className="text-gray-500 text-sm mt-2">
-                  This will become the new profile photo
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="bg-purple-50 p-4 rounded-xl border border-purple-200">
-                  <p className="text-purple-700 font-medium text-sm">
-                    📸 The latest uploaded photo will automatically become the
-                    profile picture
-                  </p>
-                </div>
-                <ImageUpload
-                  value={undefined}
-                  onChange={handleAddPhoto}
-                  maxSize={5}
-                  acceptedTypes={[
-                    "image/jpeg",
-                    "image/png",
-                    "image/jpg",
-                    "image/webp",
-                  ]}
-                />
-              </div>
-            )}
-          </div>
         </div>
       )}
 
