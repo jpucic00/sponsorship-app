@@ -3,7 +3,7 @@ import {
   Filter,
   Heart,
   Users,
-  SchoolIcon,
+  GraduationCap,
   UserCheck,
   Link2,
   X,
@@ -126,14 +126,9 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row items-center justify-between space-y-4 lg:space-y-0">
-      {/* Main row with increased spacing when filters are closed */}
-      <div
-        className={`flex items-center ${
-          showFilters ? "space-x-4" : "space-x-12"
-        }`}
-      >
-        {/* Filter Toggle */}
+    <div className="space-y-6">
+      {/* Top row with Filter button - fixed positioning */}
+      <div className="flex items-center justify-end">
         <button
           onClick={() => setShowFilters(!showFilters)}
           className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
@@ -154,8 +149,8 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
 
       {/* Filters Panel */}
       {showFilters && (
-        <div className="w-full mt-6 pt-6 border-t border-gray-200 relative">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 relative overflow-visible">
+        <div className="bg-white/60 rounded-2xl p-6 border border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             {/* Sponsorship Status Filter */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-gray-700">
@@ -205,7 +200,7 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
             {/* School Filter with Search */}
             <SearchableSelect
               label="School"
-              icon={<SchoolIcon size={16} className="inline mr-1" />}
+              icon={<GraduationCap size={16} className="inline mr-1" />}
               value={filterSchool}
               onValueChange={setFilterSchool}
               options={schoolOptions}
@@ -253,6 +248,56 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Active Filters Display */}
+          {hasActiveFilters && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+              <div className="flex items-center space-x-2 flex-wrap">
+                <span className="text-sm font-medium text-blue-700">
+                  Active filters:
+                </span>
+                {filterSponsored !== "all" && (
+                  <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    Status: {filterSponsored}
+                  </span>
+                )}
+                {filterGender !== "all" && (
+                  <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    Gender: {filterGender}
+                  </span>
+                )}
+                {filterSchool !== "all" && (
+                  <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    School:{" "}
+                    {
+                      schools.find((s) => s.id.toString() === filterSchool)
+                        ?.name
+                    }
+                  </span>
+                )}
+                {filterSponsor !== "all" && (
+                  <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    Sponsor:{" "}
+                    {filterSponsor === "none"
+                      ? "No Sponsor"
+                      : sponsors.find((s) => s.id.toString() === filterSponsor)
+                          ?.fullName}
+                  </span>
+                )}
+                {filterProxy !== "all" && (
+                  <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    Proxy:{" "}
+                    {filterProxy === "none"
+                      ? "No Proxy"
+                      : filterProxy === "direct"
+                      ? "Direct Contact"
+                      : proxies.find((p) => p.id.toString() === filterProxy)
+                          ?.fullName}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

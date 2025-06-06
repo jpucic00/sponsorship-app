@@ -90,8 +90,9 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
     endIndex: 1,
   });
 
-  // Filter states
+  // Search and filter states
   const [searchTerm, setSearchTerm] = useState("");
+  const [actualSearchTerm, setActualSearchTerm] = useState(""); // What we actually search for
   const [filterSponsored, setFilterSponsored] = useState("all");
   const [filterGender, setFilterGender] = useState("all");
   const [filterSchool, setFilterSchool] = useState("all");
@@ -104,18 +105,6 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
   const [sponsorSearchTerm, setSponsorSearchTerm] = useState("");
   const [proxySearchTerm, setProxySearchTerm] = useState("");
 
-  // Debounced search
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-
-  // Debounce search term
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
-
   const fetchData = useCallback(
     async (page: number = 1, resetPage: boolean = false) => {
       setLoading(true);
@@ -124,7 +113,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
         const params = new URLSearchParams({
           page: resetPage ? "1" : page.toString(),
           limit: "20",
-          search: debouncedSearchTerm,
+          search: actualSearchTerm, // Use actualSearchTerm instead of searchTerm
         });
 
         if (filterSponsored !== "all") {
@@ -168,7 +157,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
       }
     },
     [
-      debouncedSearchTerm,
+      actualSearchTerm, // Changed from searchTerm to actualSearchTerm
       filterSponsored,
       filterGender,
       filterSchool,
@@ -183,20 +172,23 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
     fetchData(1, true);
   }, []);
 
-  // Refetch when filters change
+  // Refetch when filters change (but NOT when searchTerm changes)
   useEffect(() => {
-    if (debouncedSearchTerm !== searchTerm) {
-      return;
-    }
     fetchData(1, true);
   }, [
-    debouncedSearchTerm,
+    actualSearchTerm, // Only when actualSearchTerm changes
     filterSponsored,
     filterGender,
     filterSchool,
     filterSponsor,
     filterProxy,
   ]);
+
+  // Handle search execution
+  const handleSearch = () => {
+    setActualSearchTerm(searchTerm);
+    // fetchData will be triggered by the useEffect above
+  };
 
   const handlePageChange = (page: number) => {
     fetchData(page);
@@ -221,6 +213,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
 
   const clearAllFilters = () => {
     setSearchTerm("");
+    setActualSearchTerm("");
     setFilterSponsored("all");
     setFilterGender("all");
     setFilterSchool("all");
@@ -232,7 +225,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
   };
 
   const hasActiveFilters =
-    searchTerm ||
+    actualSearchTerm || // Use actualSearchTerm here too
     filterSponsored !== "all" ||
     filterGender !== "all" ||
     filterSchool !== "all" ||
@@ -241,7 +234,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
 
   const getActiveFilterCount = () => {
     return [
-      searchTerm && "search",
+      actualSearchTerm && "search", // Use actualSearchTerm here too
       filterSponsored !== "all" && "status",
       filterGender !== "all" && "gender",
       filterSchool !== "all" && "school",
@@ -266,52 +259,45 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
       <div className="max-w-7xl mx-auto px-4 space-y-8">
         {/* Statistics Bar */}
         <ChildrenStatistics children={children} pagination={pagination} />
+
         {/* Search and Filters */}
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-          <ChildrenSearchBar
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
-          />
+          <div className="space-y-6">
+            {/* Search Bar */}
+            <ChildrenSearchBar
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              onSearch={handleSearch}
+            />
 
-          <ChildrenFilters
-            showFilters={showFilters}
-            setShowFilters={setShowFilters}
-            hasActiveFilters={hasActiveFilters}
-            getActiveFilterCount={getActiveFilterCount}
-            filterSponsored={filterSponsored}
-            setFilterSponsored={setFilterSponsored}
-            filterGender={filterGender}
-            setFilterGender={setFilterGender}
-            filterSchool={filterSchool}
-            setFilterSchool={setFilterSchool}
-            filterSponsor={filterSponsor}
-            setFilterSponsor={setFilterSponsor}
-            filterProxy={filterProxy}
-            setFilterProxy={setFilterProxy}
-            schoolSearchTerm={schoolSearchTerm}
-            setSchoolSearchTerm={setSchoolSearchTerm}
-            sponsorSearchTerm={sponsorSearchTerm}
-            setSponsorSearchTerm={setSponsorSearchTerm}
-            proxySearchTerm={proxySearchTerm}
-            setProxySearchTerm={setProxySearchTerm}
-            schools={schools}
-            sponsors={sponsors}
-            proxies={proxies}
-            clearAllFilters={clearAllFilters}
-          />
-
-          <ActiveFiltersDisplay
-            hasActiveFilters={hasActiveFilters}
-            searchTerm={searchTerm}
-            filterSponsored={filterSponsored}
-            filterGender={filterGender}
-            filterSchool={filterSchool}
-            filterSponsor={filterSponsor}
-            filterProxy={filterProxy}
-            schools={schools}
-            sponsors={sponsors}
-            proxies={proxies}
-          />
+            {/* Filters */}
+            <ChildrenFilters
+              showFilters={showFilters}
+              setShowFilters={setShowFilters}
+              hasActiveFilters={hasActiveFilters}
+              getActiveFilterCount={getActiveFilterCount}
+              filterSponsored={filterSponsored}
+              setFilterSponsored={setFilterSponsored}
+              filterGender={filterGender}
+              setFilterGender={setFilterGender}
+              filterSchool={filterSchool}
+              setFilterSchool={setFilterSchool}
+              filterSponsor={filterSponsor}
+              setFilterSponsor={setFilterSponsor}
+              filterProxy={filterProxy}
+              setFilterProxy={setFilterProxy}
+              schoolSearchTerm={schoolSearchTerm}
+              setSchoolSearchTerm={setSchoolSearchTerm}
+              sponsorSearchTerm={sponsorSearchTerm}
+              setSponsorSearchTerm={setSponsorSearchTerm}
+              proxySearchTerm={proxySearchTerm}
+              setProxySearchTerm={setProxySearchTerm}
+              schools={schools}
+              sponsors={sponsors}
+              proxies={proxies}
+              clearAllFilters={clearAllFilters}
+            />
+          </div>
         </div>
 
         {/* Children Table/Cards */}
