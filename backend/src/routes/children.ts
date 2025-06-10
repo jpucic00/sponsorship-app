@@ -241,6 +241,536 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/statistics', async (req, res) => {
+  try {
+    // Apply the same filters as the main children route for consistency
+    const search = req.query.search as string || '';
+    const sponsorship = req.query.sponsorship as string;
+    const gender = req.query.gender as string;
+    const schoolId = req.query.schoolId as string;
+    const sponsorId = req.query.sponsorId as string;
+    const proxyId = req.query.proxyId as string;
+
+    // Build where clause based on filters (same logic as main route)
+    const where: any = {};
+
+    // Search filter
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { school: { name: { contains: search, mode: 'insensitive' } } }
+      ];
+    }
+
+    // Gender filter
+    if (gender && gender !== 'all') {
+      where.gender = { equals: gender, mode: 'insensitive' };
+    }
+
+    // School filter
+    if (schoolId && schoolId !== 'all') {
+      where.schoolId = parseInt(schoolId);
+    }
+
+    // For sponsor and proxy filters, we need to use relationship queries
+    if (sponsorId && sponsorId !== 'all') {
+      if (sponsorId === 'none') {
+        where.sponsorships = { none: { isActive: true } };
+      } else {
+        where.sponsorships = {
+          some: {
+            sponsorId: parseInt(sponsorId),
+            isActive: true
+          }
+        };
+      }
+    }
+
+    if (proxyId && proxyId !== 'all') {
+      if (proxyId === 'none') {
+        where.sponsorships = {
+          every: {
+            sponsor: { proxyId: null }
+          }
+        };
+      } else if (proxyId === 'direct') {
+        where.sponsorships = {
+          some: {
+            sponsor: { proxyId: null },
+            isActive: true
+          }
+        };
+      } else {
+        where.sponsorships = {
+          some: {
+            sponsor: { proxyId: parseInt(proxyId) },
+            isActive: true
+          }
+        };
+      }
+    }
+
+    // Get total count
+    const totalChildren = await prisma.child.count({ where });
+
+    // Get sponsored children count
+    let sponsoredWhere = { ...where };
+    if (sponsorship === 'sponsored') {
+      sponsoredWhere.sponsorships = { some: { isActive: true } };
+    } else if (sponsorship === 'unsponsored') {
+      sponsoredWhere.sponsorships = { none: { isActive: true } };
+    } else {
+      // For overall stats, we want to count children with active sponsorships
+      sponsoredWhere = {
+        ...where,
+        sponsorships: { some: { isActive: true } }
+      };
+    }
+
+    const sponsoredChildren = await prisma.child.count({ 
+      where: sponsoredWhere 
+    });
+
+    // Get unsponsored children count
+    const unsponsoredChildren = sponsorship ? 
+      (sponsorship === 'unsponsored' ? totalChildren : totalChildren - sponsoredChildren) :
+      await prisma.child.count({
+        where: {
+          ...where,
+          sponsorships: { none: { isActive: true } }
+        }
+      });
+
+    // Get unique schools count for filtered children
+    const childrenWithSchools = await prisma.child.findMany({
+      where,
+      select: {
+        schoolId: true
+      },
+      distinct: ['schoolId']
+    });
+
+    const uniqueSchoolsCount = childrenWithSchools.length;
+
+    // Get gender breakdown
+    const genderStats = await prisma.child.groupBy({
+      by: ['gender'],
+      where,
+      _count: {
+        gender: true
+      }
+    });
+
+    // Get class breakdown
+    const classStats = await prisma.child.groupBy({
+      by: ['class'],
+      where,
+      _count: {
+        class: true
+      }
+    });
+
+    // Get school breakdown (top 5)
+    const schoolStats = await prisma.child.groupBy({
+      by: ['schoolId'],
+      where,
+      _count: {
+        schoolId: true
+      },
+      orderBy: {
+        _count: {
+          schoolId: 'desc'
+        }
+      },
+      take: 5
+    });
+
+    // Get school names for the top schools
+    const topSchoolIds = schoolStats.map(stat => stat.schoolId);
+    const schools = await prisma.school.findMany({
+      where: {
+        id: { in: topSchoolIds }
+      },
+      select: {
+        id: true,
+        name: true,
+        location: true
+      }
+    });
+
+    // Combine school stats with names
+    const schoolStatsWithNames = schoolStats.map(stat => {
+      const school = schools.find(s => s.id === stat.schoolId);
+      return {
+        schoolId: stat.schoolId,
+        schoolName: school?.name || 'Unknown School',
+        schoolLocation: school?.location || '',
+        count: stat._count.schoolId
+      };
+    });
+
+    const statistics = {
+      total: {
+        children: totalChildren,
+        sponsored: sponsoredChildren,
+        unsponsored: unsponsoredChildren,
+        schools: uniqueSchoolsCount
+      },
+      percentages: {
+        sponsored: totalChildren > 0 ? Math.round((sponsoredChildren / totalChildren) * 100) : 0,
+        unsponsored: totalChildren > 0 ? Math.round((unsponsoredChildren / totalChildren) * 100) : 0
+      },
+      breakdown: {
+        gender: genderStats.map(stat => ({
+          gender: stat.gender,
+          count: stat._count.gender
+        })),
+        class: classStats.map(stat => ({
+          class: stat.class,
+          count: stat._count.class
+        })).sort((a, b) => {
+          // Sort classes in logical order (P1, P2, ... S1, S2, ...)
+          const classOrder = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'];
+          return classOrder.indexOf(a.class) - classOrder.indexOf(b.class);
+        }),
+        topSchools: schoolStatsWithNames
+      },
+      appliedFilters: {
+        search: search || null,
+        sponsorship: sponsorship || null,
+        gender: gender || null,
+        schoolId: schoolId || null,
+        sponsorId: sponsorId || null,
+        proxyId: proxyId || null
+      }
+    };
+
+    res.json(statistics);
+  } catch (error) {
+    console.error('Error fetching children statistics:', error);
+    res.status(500).json({ error: 'Failed to fetch children statistics' });
+  }
+});
+
+
+// Add this new route to backend/src/routes/children.ts or create a new dashboard.ts route file
+
+// GET dashboard statistics endpoint
+router.get('/dashboard-statistics', async (req, res) => {
+  try {
+    // Basic counts
+    const [totalChildren, totalSponsors, totalSchools, totalVolunteers, totalProxies] = await Promise.all([
+      prisma.child.count(),
+      prisma.sponsor.count(),
+      prisma.school.count({ where: { isActive: true } }),
+      prisma.volunteer.count({ where: { isActive: true } }),
+      prisma.proxy.count()
+    ]);
+
+    // Sponsorship statistics
+    const [sponsoredChildren, activeSponsorships, totalSponsorships] = await Promise.all([
+      prisma.child.count({
+        where: {
+          sponsorships: { some: { isActive: true } }
+        }
+      }),
+      prisma.sponsorship.count({ where: { isActive: true } }),
+      prisma.sponsorship.count()
+    ]);
+
+    const unsponsoredChildren = totalChildren - sponsoredChildren;
+    const sponsorshipRate = totalChildren > 0 ? Math.round((sponsoredChildren / totalChildren) * 100) : 0;
+
+    // Age distribution (calculate from dateOfBirth)
+    const childrenWithAges = await prisma.child.findMany({
+      select: { dateOfBirth: true, isSponsored: true }
+    });
+
+    const ageDistribution = childrenWithAges.reduce((acc, child) => {
+      const today = new Date();
+      const birthDate = new Date(child.dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+
+      let ageGroup;
+      if (age <= 6) ageGroup = '3-6 years';
+      else if (age <= 10) ageGroup = '7-10 years';
+      else if (age <= 14) ageGroup = '11-14 years';
+      else if (age <= 18) ageGroup = '15-18 years';
+      else ageGroup = '19+ years';
+
+      if (!acc[ageGroup]) {
+        acc[ageGroup] = { total: 0, sponsored: 0 };
+      }
+      acc[ageGroup].total++;
+      if (child.isSponsored) acc[ageGroup].sponsored++;
+
+      return acc;
+    }, {} as Record<string, { total: number; sponsored: number }>);
+
+    // Education level distribution
+    const classDistribution = await prisma.child.groupBy({
+      by: ['class'],
+      _count: { class: true },
+      where: {}
+    });
+
+    // Group classes into education levels
+    const educationLevels = classDistribution.reduce((acc, item) => {
+      let level;
+      if (['P1', 'P2', 'P3'].includes(item.class)) level = 'Early Primary (P1-P3)';
+      else if (['P4', 'P5', 'P6', 'P7'].includes(item.class)) level = 'Upper Primary (P4-P7)';
+      else if (['S1', 'S2', 'S3', 'S4'].includes(item.class)) level = 'Lower Secondary (S1-S4)';
+      else if (['S5', 'S6'].includes(item.class)) level = 'Upper Secondary (S5-S6)';
+      else level = 'Other';
+
+      if (!acc[level]) acc[level] = 0;
+      acc[level] += item._count.class;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Gender distribution with sponsorship breakdown
+    const genderStats = await prisma.child.groupBy({
+      by: ['gender'],
+      _count: { gender: true }
+    });
+
+    const genderWithSponsorship = await Promise.all(
+      genderStats.map(async (stat) => {
+        const sponsored = await prisma.child.count({
+          where: {
+            gender: stat.gender,
+            sponsorships: { some: { isActive: true } }
+          }
+        });
+        return {
+          gender: stat.gender,
+          total: stat._count.gender,
+          sponsored: sponsored,
+          unsponsored: stat._count.gender - sponsored
+        };
+      })
+    );
+
+    // School statistics with performance metrics
+    const schoolStats = await prisma.school.findMany({
+      where: { isActive: true },
+      include: {
+        children: {
+          include: {
+            sponsorships: {
+              where: { isActive: true }
+            }
+          }
+        }
+      }
+    });
+
+    const schoolMetrics = schoolStats.map(school => {
+      const totalChildren = school.children.length;
+      const sponsoredChildren = school.children.filter(child => 
+        child.sponsorships.length > 0
+      ).length;
+      const sponsorshipRate = totalChildren > 0 ? Math.round((sponsoredChildren / totalChildren) * 100) : 0;
+
+      return {
+        id: school.id,
+        name: school.name,
+        location: school.location,
+        totalChildren,
+        sponsoredChildren,
+        unsponsoredChildren: totalChildren - sponsoredChildren,
+        sponsorshipRate
+      };
+    }).sort((a, b) => b.totalChildren - a.totalChildren);
+
+    // Monthly trends (last 12 months)
+    const now = new Date();
+    const monthlyTrends = [];
+    
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      
+      const [newChildren, newSponsors, newSponsorships] = await Promise.all([
+        prisma.child.count({
+          where: {
+            createdAt: {
+              gte: date,
+              lt: nextMonth
+            }
+          }
+        }),
+        prisma.sponsor.count({
+          where: {
+            createdAt: {
+              gte: date,
+              lt: nextMonth
+            }
+          }
+        }),
+        prisma.sponsorship.count({
+          where: {
+            createdAt: {
+              gte: date,
+              lt: nextMonth
+            }
+          }
+        })
+      ]);
+
+      monthlyTrends.push({
+        month: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        newChildren,
+        newSponsors,
+        newSponsorships
+      });
+    }
+
+    // Recent activity (last 30 days)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    
+    const [recentChildren, recentSponsors, recentSponsorships] = await Promise.all([
+      prisma.child.findMany({
+        where: {
+          createdAt: { gte: thirtyDaysAgo }
+        },
+        include: { school: true },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+      }),
+      prisma.sponsor.findMany({
+        where: {
+          createdAt: { gte: thirtyDaysAgo }
+        },
+        include: { proxy: true },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+      }),
+      prisma.sponsorship.findMany({
+        where: {
+          createdAt: { gte: thirtyDaysAgo }
+        },
+        include: {
+          child: true,
+          sponsor: true
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+      })
+    ]);
+
+    // Proxy/Middleman statistics
+    const proxyStats = await prisma.proxy.findMany({
+      include: {
+        sponsors: {
+          include: {
+            sponsorships: {
+              where: { isActive: true },
+              include: { child: true }
+            }
+          }
+        }
+      }
+    });
+
+    const proxyMetrics = proxyStats.map(proxy => {
+      const totalSponsors = proxy.sponsors.length;
+      const activeSponsorships = proxy.sponsors.reduce((acc, sponsor) => 
+        acc + sponsor.sponsorships.length, 0
+      );
+      
+      return {
+        id: proxy.id,
+        fullName: proxy.fullName,
+        role: proxy.role,
+        totalSponsors,
+        activeSponsorships
+      };
+    }).sort((a, b) => b.activeSponsorships - a.activeSponsorships);
+
+    // Key insights and alerts
+    const insights = [];
+    
+    if (sponsorshipRate < 50) {
+      insights.push({
+        type: 'warning',
+        title: 'Low Sponsorship Rate',
+        message: `Only ${sponsorshipRate}% of children are sponsored. Consider outreach efforts.`,
+        value: sponsorshipRate
+      });
+    }
+
+    if (unsponsoredChildren > 0) {
+      insights.push({
+        type: 'info',
+        title: 'Children Need Sponsors',
+        message: `${unsponsoredChildren} children are waiting for sponsors.`,
+        value: unsponsoredChildren
+      });
+    }
+
+    const topPerformingSchool = schoolMetrics[0];
+    if (topPerformingSchool && topPerformingSchool.sponsorshipRate > 80) {
+      insights.push({
+        type: 'success',
+        title: 'Top Performing School',
+        message: `${topPerformingSchool.name} has ${topPerformingSchool.sponsorshipRate}% sponsorship rate!`,
+        value: topPerformingSchool.sponsorshipRate
+      });
+    }
+
+    const dashboardData = {
+      overview: {
+        totalChildren,
+        totalSponsors,
+        totalSchools,
+        totalVolunteers,
+        totalProxies,
+        sponsoredChildren,
+        unsponsoredChildren,
+        activeSponsorships,
+        totalSponsorships,
+        sponsorshipRate
+      },
+      demographics: {
+        ageDistribution,
+        genderWithSponsorship,
+        educationLevels
+      },
+      schools: {
+        total: totalSchools,
+        metrics: schoolMetrics.slice(0, 10), // Top 10 schools
+        topPerforming: schoolMetrics.filter(s => s.sponsorshipRate >= 80).length
+      },
+      trends: {
+        monthly: monthlyTrends,
+        recentActivity: {
+          children: recentChildren,
+          sponsors: recentSponsors,
+          sponsorships: recentSponsorships
+        }
+      },
+      proxies: {
+        total: totalProxies,
+        metrics: proxyMetrics.slice(0, 5), // Top 5 proxies
+        totalSponsorsViaProxy: proxyMetrics.reduce((acc, p) => acc + p.totalSponsors, 0)
+      },
+      insights
+    };
+
+    res.json(dashboardData);
+  } catch (error) {
+    console.error('Error fetching dashboard statistics:', error);
+    res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
+  }
+});
+
 // POST create new child with photo gallery integration
 router.post('/', async (req, res) => {
   try {

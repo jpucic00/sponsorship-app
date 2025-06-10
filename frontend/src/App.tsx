@@ -175,14 +175,6 @@ function App() {
               element={
                 <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
                   <div className="max-w-4xl mx-auto px-4">
-                    <div className="text-center mb-8">
-                      <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-                        Import from Excel
-                      </h1>
-                      <p className="text-gray-600 text-lg">
-                        Bulk import children data from spreadsheet
-                      </p>
-                    </div>
                     <ExcelImport onImport={handleExcelImport} />
                   </div>
                 </div>

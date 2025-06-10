@@ -285,15 +285,6 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
       <div className="max-w-7xl mx-auto px-4 space-y-8">
-        {/* Statistics Bar - Show with reduced opacity when loading */}
-        <div
-          className={`transition-opacity duration-200 ${
-            loading ? "opacity-60" : "opacity-100"
-          }`}
-        >
-          <ChildrenStatistics children={children} pagination={pagination} />
-        </div>
-
         {/* Search and Filters */}
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
           <div className="space-y-6">
