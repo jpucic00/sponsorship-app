@@ -13,24 +13,29 @@ const processChildForResponse = async (child: any, includeProfilePhoto = false) 
   
   // If requested, include profile photo data
   if (includeProfilePhoto) {
-    const profilePhoto = await prisma.childPhoto.findFirst({
-      where: { 
-        childId: child.id,
-        isProfile: true 
-      },
-      select: {
-        photoBase64: true,
-        mimeType: true,
-        fileName: true,
-        fileSize: true
-      }
-    });
+    try {
+      const profilePhoto = await prisma.childPhoto.findFirst({
+        where: { 
+          childId: child.id,
+          isProfile: true 
+        },
+        select: {
+          photoBase64: true,
+          mimeType: true,
+          fileName: true,
+          fileSize: true
+        }
+      });
 
-    if (profilePhoto && profilePhoto.photoBase64 && profilePhoto.mimeType) {
-      processedChild.photoDataUrl = `data:${profilePhoto.mimeType};base64,${profilePhoto.photoBase64}`;
-      processedChild.photoMimeType = profilePhoto.mimeType;
-      processedChild.photoFileName = profilePhoto.fileName;
-      processedChild.photoSize = profilePhoto.fileSize;
+      if (profilePhoto && profilePhoto.photoBase64 && profilePhoto.mimeType) {
+        processedChild.photoDataUrl = `data:${profilePhoto.mimeType};base64,${profilePhoto.photoBase64}`;
+        processedChild.photoMimeType = profilePhoto.mimeType;
+        processedChild.photoFileName = profilePhoto.fileName;
+        processedChild.photoSize = profilePhoto.fileSize;
+      }
+    } catch (error) {
+      console.warn('Error fetching profile photo for child', child.id, error);
+      // Continue without photo if there's an error
     }
   }
   
@@ -40,9 +45,11 @@ const processChildForResponse = async (child: any, includeProfilePhoto = false) 
 // GET all children with pagination - MUST be first
 router.get('/', async (req, res) => {
   try {
+    console.log('Children API called with query:', req.query);
+
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
-    const search = req.query.search as string || '';
+    const search = (req.query.search as string)?.trim() || '';
     const sponsorship = req.query.sponsorship as string; // 'sponsored' | 'unsponsored' | undefined
     const gender = req.query.gender as string; // 'male' | 'female' | undefined
     const schoolId = req.query.schoolId as string;
@@ -50,150 +57,50 @@ router.get('/', async (req, res) => {
     const proxyId = req.query.proxyId as string;
     const includeImages = req.query.includeImages !== 'false'; // Include images by default
 
+    console.log('Search term received:', search, 'Length:', search.length);
+
     const skip = (page - 1) * limit;
 
-    // If there's a search term, use raw SQL for case-insensitive search
-    if (search && search.trim()) {
-      const searchTerm = `%${search.trim()}%`;
-      
-      // Build the base query with case-insensitive search
-      let baseQuery = `
-        SELECT c.*, s.name as schoolName, s.location as schoolLocation
-        FROM children c
-        JOIN schools s ON c.schoolId = s.id
-        WHERE (
-          LOWER(c.firstName) LIKE LOWER(?) OR 
-          LOWER(c.lastName) LIKE LOWER(?) OR 
-          LOWER(s.name) LIKE LOWER(?)
-        )
-      `;
-      
-      let countQuery = `
-        SELECT COUNT(*) as total
-        FROM children c
-        JOIN schools s ON c.schoolId = s.id
-        WHERE (
-          LOWER(c.firstName) LIKE LOWER(?) OR 
-          LOWER(c.lastName) LIKE LOWER(?) OR 
-          LOWER(s.name) LIKE LOWER(?)
-        )
-      `;
-      
-      const queryParams = [searchTerm, searchTerm, searchTerm];
-      let countParams = [searchTerm, searchTerm, searchTerm];
-      
-      // Add additional filters
-      if (gender && gender !== 'all') {
-        baseQuery += ` AND LOWER(c.gender) = LOWER(?)`;
-        countQuery += ` AND LOWER(c.gender) = LOWER(?)`;
-        queryParams.push(gender);
-        countParams.push(gender);
-      }
-      
-      if (schoolId && schoolId !== 'all') {
-        baseQuery += ` AND c.schoolId = ?`;
-        countQuery += ` AND c.schoolId = ?`;
-        queryParams.push(schoolId);
-        countParams.push(schoolId);
-      }
-      
-      // Add pagination
-      baseQuery += ` ORDER BY c.createdAt DESC LIMIT ? OFFSET ?`;
-      queryParams.push(limit.toString(), skip.toString());
-      
-      // Execute queries
-      const [children, countResult] = await Promise.all([
-        prisma.$queryRawUnsafe(baseQuery, ...queryParams),
-        prisma.$queryRawUnsafe(countQuery, ...countParams)
-      ]);
-      
-      const totalCount = (countResult as any)[0]?.total || 0;
-      
-      // Process children to match expected format
-      const processedChildren = await Promise.all(
-        (children as any[]).map(async (child) => {
-          // Get sponsorships
-          const sponsorships = await prisma.sponsorship.findMany({
-            where: { childId: child.id, isActive: true },
-            include: {
-              sponsor: {
-                include: { proxy: true }
-              }
-            }
-          });
-          
-          // Get school
-          const school = await prisma.school.findUnique({
-            where: { id: child.schoolId }
-          });
-          
-          // Process with profile photo
-          const processedChild = await processChildForResponse({
-            ...child,
-            school,
-            sponsorships
-          }, includeImages);
-          
-          return processedChild;
-        })
-      );
-
-      // Apply sponsorship filter to the processed children if needed
-      let filteredChildren = processedChildren;
-      if (sponsorship === 'sponsored') {
-        filteredChildren = processedChildren.filter(child => child.isSponsored);
-      } else if (sponsorship === 'unsponsored') {
-        filteredChildren = processedChildren.filter(child => !child.isSponsored);
-      }
-
-      // If sponsorship filter was applied, we need to recalculate pagination
-      let finalCount = totalCount;
-      if (sponsorship && sponsorship !== 'all') {
-        finalCount = filteredChildren.length;
-        // Re-paginate the filtered results
-        const startIndex = skip;
-        const endIndex = skip + limit;
-        filteredChildren = filteredChildren.slice(startIndex, endIndex);
-      }
-      
-      const totalPages = Math.ceil(finalCount / limit);
-      const hasNextPage = page < totalPages;
-      const hasPrevPage = page > 1;
-
-      return res.json({
-        data: filteredChildren,
-        pagination: {
-          currentPage: page,
-          totalPages,
-          totalCount: finalCount,
-          limit,
-          hasNextPage,
-          hasPrevPage,
-          startIndex: skip + 1,
-          endIndex: Math.min(skip + limit, finalCount)
-        }
-      });
-    }
-
-    // If no search, use regular Prisma query
+    // Build where clause based on filters
     const where: any = {};
 
-    // Gender filter
+    // Search filter - SQLite doesn't support case-insensitive mode
+    if (search && search.length > 0) {
+      console.log('Adding search filter for:', search);
+      // Convert search to lowercase for case-insensitive search in SQLite
+      const searchLower = search.toLowerCase();
+      where.OR = [
+        { 
+          firstName: { 
+            contains: searchLower
+          } 
+        },
+        { 
+          lastName: { 
+            contains: searchLower
+          } 
+        },
+        { 
+          school: { 
+            name: { 
+              contains: searchLower
+            } 
+          } 
+        }
+      ];
+    }
+
+    // Gender filter - SQLite doesn't support case-insensitive mode
     if (gender && gender !== 'all') {
-      where.gender = { equals: gender };
+      where.gender = gender; // Remove mode parameter for SQLite
     }
 
     // School filter
     if (schoolId && schoolId !== 'all') {
-      where.schoolId = parseInt(schoolId);
-    }
-
-    // Sponsorship filter - handled after initial query due to relationship complexity
-    let sponsorshipFilter = null;
-    if (sponsorship === 'sponsored') {
-      sponsorshipFilter = 'sponsored';
-    } else if (sponsorship === 'unsponsored') {
-      sponsorshipFilter = 'unsponsored';
+      const schoolIdNum = parseInt(schoolId);
+      if (!isNaN(schoolIdNum)) {
+        where.schoolId = schoolIdNum;
+      }
     }
 
     // For sponsor and proxy filters, we need to use relationship queries
@@ -201,12 +108,15 @@ router.get('/', async (req, res) => {
       if (sponsorId === 'none') {
         where.sponsorships = { none: { isActive: true } };
       } else {
-        where.sponsorships = {
-          some: {
-            sponsorId: parseInt(sponsorId),
-            isActive: true
-          }
-        };
+        const sponsorIdNum = parseInt(sponsorId);
+        if (!isNaN(sponsorIdNum)) {
+          where.sponsorships = {
+            some: {
+              sponsorId: sponsorIdNum,
+              isActive: true
+            }
+          };
+        }
       }
     }
 
@@ -225,19 +135,32 @@ router.get('/', async (req, res) => {
           }
         };
       } else {
-        where.sponsorships = {
-          some: {
-            sponsor: { proxyId: parseInt(proxyId) },
-            isActive: true
-          }
-        };
+        const proxyIdNum = parseInt(proxyId);
+        if (!isNaN(proxyIdNum)) {
+          where.sponsorships = {
+            some: {
+              sponsor: { proxyId: proxyIdNum },
+              isActive: true
+            }
+          };
+        }
       }
     }
 
+    // Handle sponsorship filter separately for better performance
+    if (sponsorship === 'sponsored') {
+      where.sponsorships = { some: { isActive: true } };
+    } else if (sponsorship === 'unsponsored') {
+      where.sponsorships = { none: { isActive: true } };
+    }
+
+    console.log('Final where clause:', JSON.stringify(where, null, 2));
+
     // Get total count for pagination
     const totalCount = await prisma.child.count({ where });
+    console.log('Total count:', totalCount);
 
-    // Build include/select clause
+    // Build include clause
     const include = {
       school: true,
       sponsorships: {
@@ -261,57 +184,60 @@ router.get('/', async (req, res) => {
       take: limit
     });
 
+    console.log('Children found:', children.length);
+
     // Process children data and include profile photos
     const childrenWithStatus = await Promise.all(
       children.map(async (child) => {
-        const processedChild = await processChildForResponse(child, includeImages);
-        return processedChild;
+        try {
+          return await processChildForResponse(child, includeImages);
+        } catch (error) {
+          console.error('Error processing child', child.id, error);
+          // Return basic child data if processing fails
+          return {
+            ...child,
+            isSponsored: (child.sponsorships?.length || 0) > 0
+          };
+        }
       })
     );
 
-    // Apply sponsorship filter post-query if specified
-    let filteredChildren = childrenWithStatus;
-    if (sponsorshipFilter === 'sponsored') {
-      filteredChildren = childrenWithStatus.filter(child => child.isSponsored);
-    } else if (sponsorshipFilter === 'unsponsored') {
-      filteredChildren = childrenWithStatus.filter(child => !child.isSponsored);
-    }
-
-    // Recalculate pagination if sponsorship filter was applied
-    let finalCount = totalCount;
-    if (sponsorshipFilter) {
-      // Get actual count with sponsorship filter
-      const sponsoredCount = await prisma.child.count({
-        where: {
-          ...where,
-          sponsorships: sponsorshipFilter === 'sponsored' 
-            ? { some: { isActive: true } }
-            : { none: { isActive: true } }
-        }
-      });
-      finalCount = sponsoredCount;
-    }
-
-    const totalPages = Math.ceil(finalCount / limit);
+    const totalPages = Math.ceil(totalCount / limit);
     const hasNextPage = page < totalPages;
     const hasPrevPage = page > 1;
 
-    res.json({
-      data: filteredChildren,
+    const response = {
+      data: childrenWithStatus,
       pagination: {
         currentPage: page,
         totalPages,
-        totalCount: finalCount,
+        totalCount,
         limit,
         hasNextPage,
         hasPrevPage,
         startIndex: skip + 1,
-        endIndex: Math.min(skip + limit, finalCount)
+        endIndex: Math.min(skip + limit, totalCount)
       }
-    });
+    };
+
+    console.log('Sending response with', childrenWithStatus.length, 'children');
+    res.json(response);
+    
   } catch (error) {
     console.error('Error fetching children:', error);
-    res.status(500).json({ error: 'Failed to fetch children' });
+    
+    // Type-safe error handling
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('Error stack:', errorStack);
+    
+    // Send a more detailed error response for debugging
+    res.status(500).json({ 
+      error: 'Failed to fetch children',
+      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
+    });
   }
 });
 
@@ -418,7 +344,7 @@ router.post('/', async (req, res) => {
 
       // Add photo to gallery if provided
       if (photoBase64 && photoMimeType) {
-        // Validate image data (you may want to extract this to a helper function)
+        // Validate image data
         if (!photoMimeType.startsWith('image/')) {
           throw new Error('Invalid image MIME type');
         }
