@@ -1,5 +1,5 @@
 import React from "react";
-import { Heart, Search, Plus, Check, X } from "lucide-react";
+import { Heart, Search, Plus, X } from "lucide-react";
 import { ExistingSponsorSelector } from "./ExistingSponsorSelector";
 import { NewSponsorForm } from "./NewSponsorForm";
 

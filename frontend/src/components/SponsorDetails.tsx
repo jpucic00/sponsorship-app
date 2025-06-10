@@ -9,22 +9,14 @@ import {
   MapPin,
   Calendar,
   FileText,
-  UserCheck,
   Clock,
   DollarSign,
-  CreditCard,
   Link2,
-  Mail,
-  Home,
   User,
   GraduationCap,
 } from "lucide-react";
 // Import the date utility functions
-import {
-  formatDateTime,
-  formatDate,
-  formatDateTimeWithRelative,
-} from "../utils/dateUtils";
+import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface Sponsor {
   id: number;

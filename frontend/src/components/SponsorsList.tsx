@@ -15,7 +15,6 @@ import {
   X,
 } from "lucide-react";
 import { Pagination } from "./Pagination";
-import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface Sponsor {
   id: number;

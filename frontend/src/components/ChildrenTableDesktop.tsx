@@ -1,5 +1,5 @@
 import React from "react";
-import { Eye, Heart, Camera } from "lucide-react";
+import { Eye, Camera } from "lucide-react";
 import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface Child {

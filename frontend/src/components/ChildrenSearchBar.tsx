@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Plus, Filter, X } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 
 interface ChildrenSearchBarProps {
   searchTerm: string;

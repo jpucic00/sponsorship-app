@@ -12,12 +12,7 @@ import {
   BarChart3,
   Calendar,
   MapPin,
-  Clock,
-  AlertTriangle,
-  CheckCircle,
-  Info,
   Eye,
-  ArrowRight,
   Target,
   Award,
   Activity,
@@ -25,7 +20,7 @@ import {
   Globe,
   UserCheck,
 } from "lucide-react";
-import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
+import { formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface DashboardData {
   overview: {

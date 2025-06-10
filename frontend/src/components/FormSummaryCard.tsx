@@ -81,7 +81,7 @@ export const FormSummaryCard: React.FC<FormSummaryCardProps> = ({
           <div className="text-gray-900 font-medium">
             {selectedSponsors.length > 0 ? (
               <div className="space-y-1">
-                {selectedSponsors.map((sponsor, index) => (
+                {selectedSponsors.map((sponsor) => (
                   <div key={sponsor.id}>
                     {sponsor.fullName}
                     {sponsor.proxy && (

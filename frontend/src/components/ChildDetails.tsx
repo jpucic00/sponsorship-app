@@ -14,7 +14,6 @@ import {
   Camera,
   UserCheck,
   Clock,
-  MapPin,
   Plus,
   X,
   DollarSign,

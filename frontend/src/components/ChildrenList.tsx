@@ -4,7 +4,6 @@ import { ChildrenFilters } from "./ChildrenFilters";
 import { ActiveFiltersDisplay } from "./ActiveFiltersDisplay";
 import { ChildrenTableDesktop } from "./ChildrenTableDesktop";
 import { ChildrenCardsMobile } from "./ChildrenCardsMobile";
-import { ChildrenStatistics } from "./ChildrenStatistics";
 import { EmptyState } from "./EmptyState";
 import { FilterSummary } from "./FilterSummary";
 import { Pagination } from "./Pagination";
