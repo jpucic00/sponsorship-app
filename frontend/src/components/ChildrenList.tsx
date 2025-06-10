@@ -114,13 +114,11 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
     async (page: number = 1, resetPage: boolean = false) => {
       setLoading(true);
       try {
-        console.log("Fetching data with search term:", actualSearchTerm); // Debug log
-
         // Build query parameters
         const params = new URLSearchParams({
           page: resetPage ? "1" : page.toString(),
           limit: "20",
-          search: actualSearchTerm.trim(), // Ensure we trim the search term
+          search: actualSearchTerm.trim(),
         });
 
         if (filterSponsored !== "all") {
@@ -138,8 +136,6 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
         if (filterProxy !== "all") {
           params.append("proxyId", filterProxy);
         }
-
-        console.log("API URL:", `/api/children?${params.toString()}`); // Debug log
 
         const [childrenRes, schoolsRes, sponsorsRes, proxiesRes] =
           await Promise.all([
@@ -159,8 +155,6 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
         const schoolsData = await schoolsRes.json();
         const sponsorsData = await sponsorsRes.json();
         const proxiesData = await proxiesRes.json();
-
-        console.log("Received children data:", childrenData); // Debug log
 
         setChildren(childrenData.data || []);
         setPagination(
@@ -209,11 +203,17 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
   // Initial data fetch
   useEffect(() => {
     fetchData(1, true);
-  }, [fetchData]);
+  }, [
+    actualSearchTerm,
+    filterSponsored,
+    filterGender,
+    filterSchool,
+    filterSponsor,
+    filterProxy,
+  ]);
 
   // Handle search execution
   const handleSearch = () => {
-    console.log("Search triggered with term:", searchTerm); // Debug log
     setActualSearchTerm(searchTerm.trim());
   };
 
@@ -285,21 +285,6 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
       <div className="max-w-7xl mx-auto px-4 space-y-8">
-        {/* Debug Info - Remove this in production */}
-        {process.env.NODE_ENV === "development" && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
-            <strong>Debug Info:</strong>
-            <br />
-            Search Term: "{searchTerm}"<br />
-            Actual Search Term: "{actualSearchTerm}"<br />
-            Children Count: {children.length}
-            <br />
-            Total Count: {pagination.totalCount}
-            <br />
-            Loading: {loading.toString()}
-          </div>
-        )}
-
         {/* Statistics Bar - Show with reduced opacity when loading */}
         <div
           className={`transition-opacity duration-200 ${

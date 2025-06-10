@@ -52,21 +52,135 @@ router.get('/', async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    // Build where clause based on filters
-    const where: any = {};
+    // If there's a search term, use raw SQL for case-insensitive search
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      
+      // Build the base query with case-insensitive search
+      let baseQuery = `
+        SELECT c.*, s.name as schoolName, s.location as schoolLocation
+        FROM children c
+        JOIN schools s ON c.schoolId = s.id
+        WHERE (
+          LOWER(c.firstName) LIKE LOWER(?) OR 
+          LOWER(c.lastName) LIKE LOWER(?) OR 
+          LOWER(s.name) LIKE LOWER(?)
+        )
+      `;
+      
+      let countQuery = `
+        SELECT COUNT(*) as total
+        FROM children c
+        JOIN schools s ON c.schoolId = s.id
+        WHERE (
+          LOWER(c.firstName) LIKE LOWER(?) OR 
+          LOWER(c.lastName) LIKE LOWER(?) OR 
+          LOWER(s.name) LIKE LOWER(?)
+        )
+      `;
+      
+      const queryParams = [searchTerm, searchTerm, searchTerm];
+      let countParams = [searchTerm, searchTerm, searchTerm];
+      
+      // Add additional filters
+      if (gender && gender !== 'all') {
+        baseQuery += ` AND LOWER(c.gender) = LOWER(?)`;
+        countQuery += ` AND LOWER(c.gender) = LOWER(?)`;
+        queryParams.push(gender);
+        countParams.push(gender);
+      }
+      
+      if (schoolId && schoolId !== 'all') {
+        baseQuery += ` AND c.schoolId = ?`;
+        countQuery += ` AND c.schoolId = ?`;
+        queryParams.push(schoolId);
+        countParams.push(schoolId);
+      }
+      
+      // Add pagination
+      baseQuery += ` ORDER BY c.createdAt DESC LIMIT ? OFFSET ?`;
+      queryParams.push(limit.toString(), skip.toString());
+      
+      // Execute queries
+      const [children, countResult] = await Promise.all([
+        prisma.$queryRawUnsafe(baseQuery, ...queryParams),
+        prisma.$queryRawUnsafe(countQuery, ...countParams)
+      ]);
+      
+      const totalCount = (countResult as any)[0]?.total || 0;
+      
+      // Process children to match expected format
+      const processedChildren = await Promise.all(
+        (children as any[]).map(async (child) => {
+          // Get sponsorships
+          const sponsorships = await prisma.sponsorship.findMany({
+            where: { childId: child.id, isActive: true },
+            include: {
+              sponsor: {
+                include: { proxy: true }
+              }
+            }
+          });
+          
+          // Get school
+          const school = await prisma.school.findUnique({
+            where: { id: child.schoolId }
+          });
+          
+          // Process with profile photo
+          const processedChild = await processChildForResponse({
+            ...child,
+            school,
+            sponsorships
+          }, includeImages);
+          
+          return processedChild;
+        })
+      );
 
-    // Search filter
-    if (search) {
-      where.OR = [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { school: { name: { contains: search, mode: 'insensitive' } } }
-      ];
+      // Apply sponsorship filter to the processed children if needed
+      let filteredChildren = processedChildren;
+      if (sponsorship === 'sponsored') {
+        filteredChildren = processedChildren.filter(child => child.isSponsored);
+      } else if (sponsorship === 'unsponsored') {
+        filteredChildren = processedChildren.filter(child => !child.isSponsored);
+      }
+
+      // If sponsorship filter was applied, we need to recalculate pagination
+      let finalCount = totalCount;
+      if (sponsorship && sponsorship !== 'all') {
+        finalCount = filteredChildren.length;
+        // Re-paginate the filtered results
+        const startIndex = skip;
+        const endIndex = skip + limit;
+        filteredChildren = filteredChildren.slice(startIndex, endIndex);
+      }
+      
+      const totalPages = Math.ceil(finalCount / limit);
+      const hasNextPage = page < totalPages;
+      const hasPrevPage = page > 1;
+
+      return res.json({
+        data: filteredChildren,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalCount: finalCount,
+          limit,
+          hasNextPage,
+          hasPrevPage,
+          startIndex: skip + 1,
+          endIndex: Math.min(skip + limit, finalCount)
+        }
+      });
     }
+
+    // If no search, use regular Prisma query
+    const where: any = {};
 
     // Gender filter
     if (gender && gender !== 'all') {
-      where.gender = { equals: gender, mode: 'insensitive' };
+      where.gender = { equals: gender };
     }
 
     // School filter

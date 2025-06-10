@@ -15,17 +15,130 @@ router.get('/', async (req, res) => {
 
     const skip = (page - 1) * limit;
 
-    // Build where clause based on filters
-    const where: any = {};
+    // If there's a search term, use raw SQL for case-insensitive search
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      
+      // Build the base query with case-insensitive search
+      let baseQuery = `
+        SELECT s.*, p.fullName as proxyName, p.role as proxyRole
+        FROM sponsors s
+        LEFT JOIN proxies p ON s.proxyId = p.id
+        WHERE (
+          LOWER(s.fullName) LIKE LOWER(?) OR 
+          LOWER(s.contact) LIKE LOWER(?) OR 
+          LOWER(p.fullName) LIKE LOWER(?)
+        )
+      `;
+      
+      let countQuery = `
+        SELECT COUNT(*) as total
+        FROM sponsors s
+        LEFT JOIN proxies p ON s.proxyId = p.id
+        WHERE (
+          LOWER(s.fullName) LIKE LOWER(?) OR 
+          LOWER(s.contact) LIKE LOWER(?) OR 
+          LOWER(p.fullName) LIKE LOWER(?)
+        )
+      `;
+      
+      const queryParams = [searchTerm, searchTerm, searchTerm];
+      let countParams = [searchTerm, searchTerm, searchTerm];
+      
+      // Add additional filters
+      if (proxyId && proxyId !== 'all') {
+        if (proxyId === 'none') {
+          baseQuery += ` AND s.proxyId IS NULL`;
+          countQuery += ` AND s.proxyId IS NULL`;
+        } else {
+          baseQuery += ` AND s.proxyId = ?`;
+          countQuery += ` AND s.proxyId = ?`;
+          queryParams.push(proxyId);
+          countParams.push(proxyId);
+        }
+      }
+      
+      // Add pagination
+      baseQuery += ` ORDER BY s.fullName ASC LIMIT ? OFFSET ?`;
+      queryParams.push(limit.toString(), skip.toString());
+      
+      // Execute queries
+      const [sponsors, countResult] = await Promise.all([
+        prisma.$queryRawUnsafe(baseQuery, ...queryParams),
+        prisma.$queryRawUnsafe(countQuery, ...countParams)
+      ]);
+      
+      const totalCount = (countResult as any)[0]?.total || 0;
+      
+      // Process sponsors to match expected format
+      const processedSponsors = await Promise.all(
+        (sponsors as any[]).map(async (sponsor) => {
+          // Get proxy
+          const proxy = sponsor.proxyId ? await prisma.proxy.findUnique({
+            where: { id: sponsor.proxyId }
+          }) : null;
+          
+          // Get sponsorships
+          const sponsorships = await prisma.sponsorship.findMany({
+            where: { sponsorId: sponsor.id },
+            include: {
+              child: {
+                include: { school: true }
+              }
+            }
+          });
+          
+          return {
+            ...sponsor,
+            proxy,
+            sponsorships
+          };
+        })
+      );
 
-    // Search filter
-    if (search) {
-      where.OR = [
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { contact: { contains: search, mode: 'insensitive' } },
-        { proxy: { fullName: { contains: search, mode: 'insensitive' } } }
-      ];
+      // Apply sponsorship filter if needed
+      let filteredSponsors = processedSponsors;
+      if (hasSponsorship === 'active') {
+        filteredSponsors = processedSponsors.filter(sponsor => 
+          sponsor.sponsorships.some((s: any) => s.isActive)
+        );
+      } else if (hasSponsorship === 'none') {
+        filteredSponsors = processedSponsors.filter(sponsor => 
+          !sponsor.sponsorships.some((s: any) => s.isActive)
+        );
+      }
+
+      // If sponsorship filter was applied, we need to recalculate pagination
+      let finalCount = totalCount;
+      if (hasSponsorship && hasSponsorship !== 'all') {
+        finalCount = filteredSponsors.length;
+        // Re-paginate the filtered results
+        const startIndex = skip;
+        const endIndex = skip + limit;
+        filteredSponsors = filteredSponsors.slice(startIndex, endIndex);
+      }
+      
+      const totalPages = Math.ceil(finalCount / limit);
+      const hasNextPage = page < totalPages;
+      const hasPrevPage = page > 1;
+
+      return res.json({
+        data: filteredSponsors,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalCount: finalCount,
+          limit,
+          hasNextPage,
+          hasPrevPage,
+          startIndex: skip + 1,
+          endIndex: Math.min(skip + limit, finalCount)
+        }
+      });
     }
+
+    // If no search, use regular Prisma query
+    const where: any = {};
 
     // Proxy filter
     if (proxyId && proxyId !== 'all') {
