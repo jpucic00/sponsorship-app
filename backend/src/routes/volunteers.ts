@@ -1,12 +1,5 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client'
-import { PrismaLibSQL } from '@prisma/adapter-libsql'
-
-const adapter = new PrismaLibSQL({
-  url: process.env.TURSO_DATABASE_URL?.trim().replace(/=/g, '') as string,
-  authToken: process.env.TURSO_AUTH_TOKEN?.trim().replace(/=/g, '')  as string,
-})
-const prisma = new PrismaClient({ adapter })
+import { prisma } from '../lib/db';
 
 const router = express.Router();
 
