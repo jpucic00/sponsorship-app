@@ -6,8 +6,6 @@ import {
   Users,
   Heart,
   Phone,
-  UserCheck,
-  Clock,
   Eye,
   Edit,
   Link2,
