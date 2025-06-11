@@ -45,6 +45,19 @@ model Child {
   sponsorships          Sponsorship[]
   photos                ChildPhoto[]  // All photos for this child
   
+  // Performance Indexes
+  @@index([schoolId])                           // Foreign key index (auto-created in some DBs)
+  @@index([isSponsored])                        // Filter by sponsorship status
+  @@index([class])                              // Filter by school class
+  @@index([gender])                             // Filter by gender
+  @@index([dateOfBirth])                        // Age-based queries, sorting
+  @@index([lastName, firstName])                // Name searches (surname first)
+  @@index([schoolId, class])                    // School + class combinations
+  @@index([schoolId, isSponsored])              // Available children per school
+  @@index([isSponsored, dateEnteredRegister])   // Unsponsored children by date
+  @@index([createdAt])                          // Recent additions
+  @@index([lastProfileUpdate])                  // Recently updated profiles
+  
   @@map("children")
 }
 
@@ -62,6 +75,13 @@ model ChildPhoto {
   // Relations
   child       Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
   
+  // Performance Indexes
+  @@index([childId])                    // Foreign key index
+  @@index([childId, isProfile])         // Find profile photo for child
+  @@index([childId, uploadedAt])        // Photos by upload date per child
+  @@index([isProfile])                  // All profile photos
+  @@index([uploadedAt])                 // Recent uploads
+  
   @@map("child_photos")
 }
 
@@ -72,6 +92,11 @@ model School {
   isActive Boolean  @default(true)
   
   children Child[]
+  
+  // Performance Indexes
+  @@index([isActive])           // Filter active schools
+  @@index([name])               // Name searches (unique constraint serves as index)
+  @@index([location])           // Location-based queries
   
   @@map("schools")
 }
@@ -89,6 +114,12 @@ model Sponsor {
   proxy             Proxy?   @relation(fields: [proxyId], references: [id])
   sponsorships      Sponsorship[]
   
+  // Performance Indexes
+  @@index([proxyId])            // Foreign key index
+  @@index([fullName])           // Name searches
+  @@index([createdAt])          // Recent sponsors
+  @@index([proxyId, fullName])  // Sponsors by proxy
+  
   @@map("sponsors")
 }
 
@@ -104,6 +135,10 @@ model Proxy {
   
   // Relations
   sponsors    Sponsor[]
+  
+  // Performance Indexes
+  @@index([role])               // Filter by role type
+  @@index([createdAt])          // Recent proxies
   
   @@map("proxies")
 }
@@ -124,6 +159,18 @@ model Sponsorship {
   child   Child   @relation(fields: [childId], references: [id])
   sponsor Sponsor @relation(fields: [sponsorId], references: [id])
   
+  // Performance Indexes
+  @@index([childId])                    // Foreign key index
+  @@index([sponsorId])                  // Foreign key index
+  @@index([isActive])                   // Active sponsorships
+  @@index([startDate])                  // Sponsorships by start date
+  @@index([endDate])                    // Expired sponsorships
+  @@index([childId, isActive])          // Active sponsorships per child
+  @@index([sponsorId, isActive])        // Active sponsorships per sponsor
+  @@index([isActive, startDate])        // Active sponsorships by date
+  @@index([paymentMethod])              // Group by payment method
+  @@index([monthlyAmount])              // Sort/filter by amount
+  
   @@unique([childId, sponsorId, isActive])
   @@map("sponsorships")
 }
@@ -138,6 +185,13 @@ model Volunteer {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  // Performance Indexes
+  @@index([isActive])               // Filter active volunteers
+  @@index([role])                   // Filter by role
+  @@index([lastName, firstName])    // Name searches
+  @@index([createdAt])              // Recent volunteers
+  @@index([role, isActive])         // Active volunteers by role
   
   @@map("volunteers")
 }
