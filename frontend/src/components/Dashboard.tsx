@@ -20,6 +20,7 @@ import {
   Globe,
   UserCheck,
 } from "lucide-react";
+// Note: Using custom chart implementation since recharts is not available
 import { formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface DashboardData {
@@ -96,6 +97,8 @@ export const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
     "overview" | "demographics" | "schools" | "activity"
   >("overview");
+  const [chartTimeSpan, setChartTimeSpan] = useState<1 | 3 | 6 | 12>(1);
+  const [chartType, setChartType] = useState<"line" | "bar">("line");
 
   useEffect(() => {
     fetchDashboardData();
@@ -115,6 +118,217 @@ export const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper function to filter monthly data based on selected time span
+  const getFilteredMonthlyData = () => {
+    if (!data?.trends.monthly) return [];
+
+    // Get the last N months based on selection
+    const filteredData = data.trends.monthly.slice(-chartTimeSpan);
+
+    return filteredData.map((item) => ({
+      ...item,
+      // Add a shorter month label for better chart display
+      shortMonth: item.month.split(" ")[0], // Just "Jan", "Feb", etc.
+    }));
+  };
+
+  // Custom Chart Component (since recharts is not available)
+  const CustomChart = ({
+    data,
+    type,
+  }: {
+    data: any[];
+    type: "line" | "bar";
+  }) => {
+    const maxValue = Math.max(
+      ...data.flatMap((item) => [
+        item.newChildren,
+        item.newSponsors,
+        item.newSponsorships,
+      ])
+    );
+
+    return (
+      <div className="bg-white rounded-xl p-4 border border-blue-200">
+        <div className="h-96 flex items-end justify-between space-x-2 px-4 py-2">
+          {data.map((item, index) => {
+            const heightChildren = (item.newChildren / maxValue) * 320;
+            const heightSponsors = (item.newSponsors / maxValue) * 320;
+            const heightSponsorships = (item.newSponsorships / maxValue) * 320;
+
+            return (
+              <div
+                key={index}
+                className="flex-1 flex flex-col items-center space-y-2"
+              >
+                <div className="flex items-end space-x-1 h-80 w-full justify-center">
+                  {type === "bar" ? (
+                    <>
+                      <div
+                        className="bg-blue-500 rounded-t transition-all duration-500 hover:bg-blue-600 cursor-pointer group relative"
+                        style={{ height: `${heightChildren}px`, width: "20px" }}
+                        title={`New Children: ${item.newChildren}`}
+                      >
+                        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                          Children: {item.newChildren}
+                        </div>
+                      </div>
+                      <div
+                        className="bg-green-500 rounded-t transition-all duration-500 hover:bg-green-600 cursor-pointer group relative"
+                        style={{ height: `${heightSponsors}px`, width: "20px" }}
+                        title={`New Sponsors: ${item.newSponsors}`}
+                      >
+                        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                          Sponsors: {item.newSponsors}
+                        </div>
+                      </div>
+                      <div
+                        className="bg-purple-500 rounded-t transition-all duration-500 hover:bg-purple-600 cursor-pointer group relative"
+                        style={{
+                          height: `${heightSponsorships}px`,
+                          width: "20px",
+                        }}
+                        title={`New Sponsorships: ${item.newSponsorships}`}
+                      >
+                        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                          Sponsorships: {item.newSponsorships}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="relative w-full h-full">
+                      <svg
+                        width="100%"
+                        height="100%"
+                        className="overflow-visible"
+                      >
+                        {/* Grid lines */}
+                        {[0, 25, 50, 75, 100].map((percent) => (
+                          <line
+                            key={percent}
+                            x1="0"
+                            y1={`${100 - percent}%`}
+                            x2="100%"
+                            y2={`${100 - percent}%`}
+                            stroke="#e5e7eb"
+                            strokeDasharray="2,2"
+                          />
+                        ))}
+
+                        {/* Line for children */}
+                        <polyline
+                          fill="none"
+                          stroke="#3b82f6"
+                          strokeWidth="3"
+                          points={data
+                            .map(
+                              (item, i) =>
+                                `${(i / (data.length - 1)) * 100}%,${
+                                  100 - (item.newChildren / maxValue) * 100
+                                }%`
+                            )
+                            .join(" ")}
+                        />
+
+                        {/* Line for sponsors */}
+                        <polyline
+                          fill="none"
+                          stroke="#10b981"
+                          strokeWidth="3"
+                          points={data
+                            .map(
+                              (item, i) =>
+                                `${(i / (data.length - 1)) * 100}%,${
+                                  100 - (item.newSponsors / maxValue) * 100
+                                }%`
+                            )
+                            .join(" ")}
+                        />
+
+                        {/* Line for sponsorships */}
+                        <polyline
+                          fill="none"
+                          stroke="#8b5cf6"
+                          strokeWidth="3"
+                          points={data
+                            .map(
+                              (item, i) =>
+                                `${(i / (data.length - 1)) * 100}%,${
+                                  100 - (item.newSponsorships / maxValue) * 100
+                                }%`
+                            )
+                            .join(" ")}
+                        />
+
+                        {/* Data points */}
+                        {data.map((item, i) => (
+                          <g key={i}>
+                            <circle
+                              cx={`${(i / (data.length - 1)) * 100}%`}
+                              cy={`${
+                                100 - (item.newChildren / maxValue) * 100
+                              }%`}
+                              r="4"
+                              fill="#3b82f6"
+                              className="hover:r-6 cursor-pointer transition-all"
+                            />
+                            <circle
+                              cx={`${(i / (data.length - 1)) * 100}%`}
+                              cy={`${
+                                100 - (item.newSponsors / maxValue) * 100
+                              }%`}
+                              r="4"
+                              fill="#10b981"
+                              className="hover:r-6 cursor-pointer transition-all"
+                            />
+                            <circle
+                              cx={`${(i / (data.length - 1)) * 100}%`}
+                              cy={`${
+                                100 - (item.newSponsorships / maxValue) * 100
+                              }%`}
+                              r="4"
+                              fill="#8b5cf6"
+                              className="hover:r-6 cursor-pointer transition-all"
+                            />
+                          </g>
+                        ))}
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs font-medium text-gray-600 text-center">
+                  {item.shortMonth}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="flex justify-center space-x-6 mt-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-blue-500 rounded"></div>
+            <span className="text-sm font-medium text-gray-700">
+              New Children
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-green-500 rounded"></div>
+            <span className="text-sm font-medium text-gray-700">
+              New Sponsors
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-purple-500 rounded"></div>
+            <span className="text-sm font-medium text-gray-700">
+              New Sponsorships
+            </span>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -148,6 +362,8 @@ export const Dashboard: React.FC = () => {
       </div>
     );
   }
+
+  const filteredMonthlyData = getFilteredMonthlyData();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
@@ -326,35 +542,101 @@ export const Dashboard: React.FC = () => {
           {/* Tab Content */}
           {activeTab === "overview" && (
             <div className="space-y-6">
-              {/* Monthly Trends Chart */}
+              {/* Interactive Monthly Trends Chart */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                  <Calendar className="mr-2" size={20} />
-                  Monthly Trends (Last 12 Months)
-                </h3>
-                <div className="overflow-x-auto">
-                  <div className="flex space-x-4 min-w-full">
-                    {data.trends.monthly.map((month, index) => (
-                      <div
-                        key={index}
-                        className="flex-shrink-0 bg-white p-4 rounded-xl border border-blue-200 min-w-[140px]"
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="text-blue-600" size={24} />
+                    <h3 className="text-xl font-bold text-gray-900">
+                      Monthly Trends
+                    </h3>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                    {/* Time Span Selector */}
+                    <div className="flex bg-white rounded-lg p-1 border border-gray-200">
+                      {[1, 3, 6, 12].map((months) => (
+                        <button
+                          key={months}
+                          onClick={() =>
+                            setChartTimeSpan(months as 1 | 3 | 6 | 12)
+                          }
+                          className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                            chartTimeSpan === months
+                              ? "bg-blue-600 text-white shadow-md"
+                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                          }`}
+                        >
+                          {months}M
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Chart Type Selector */}
+                    <div className="flex bg-white rounded-lg p-1 border border-gray-200">
+                      <button
+                        onClick={() => setChartType("line")}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center space-x-1 ${
+                          chartType === "line"
+                            ? "bg-purple-600 text-white shadow-md"
+                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                        }`}
                       >
-                        <div className="text-sm font-semibold text-blue-900 mb-2">
-                          {month.month}
-                        </div>
-                        <div className="space-y-1 text-xs">
-                          <div className="text-blue-600">
-                            📚 {month.newChildren} new children
-                          </div>
-                          <div className="text-green-600">
-                            🤝 {month.newSponsors} new sponsors
-                          </div>
-                          <div className="text-purple-600">
-                            ❤️ {month.newSponsorships} new sponsorships
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        <TrendingUp size={16} />
+                        <span>Line</span>
+                      </button>
+                      <button
+                        onClick={() => setChartType("bar")}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center space-x-1 ${
+                          chartType === "bar"
+                            ? "bg-purple-600 text-white shadow-md"
+                            : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                        }`}
+                      >
+                        <BarChart3 size={16} />
+                        <span>Bar</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chart Container */}
+                <CustomChart data={filteredMonthlyData} type={chartType} />
+
+                {/* Chart Summary */}
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <div className="text-sm font-medium text-blue-700">
+                      Total New Children ({chartTimeSpan}M)
+                    </div>
+                    <div className="text-2xl font-bold text-blue-900">
+                      {filteredMonthlyData.reduce(
+                        (sum, item) => sum + item.newChildren,
+                        0
+                      )}
+                    </div>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                    <div className="text-sm font-medium text-green-700">
+                      Total New Sponsors ({chartTimeSpan}M)
+                    </div>
+                    <div className="text-2xl font-bold text-green-900">
+                      {filteredMonthlyData.reduce(
+                        (sum, item) => sum + item.newSponsors,
+                        0
+                      )}
+                    </div>
+                  </div>
+                  <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                    <div className="text-sm font-medium text-purple-700">
+                      Total New Sponsorships ({chartTimeSpan}M)
+                    </div>
+                    <div className="text-2xl font-bold text-purple-900">
+                      {filteredMonthlyData.reduce(
+                        (sum, item) => sum + item.newSponsorships,
+                        0
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -417,6 +699,7 @@ export const Dashboard: React.FC = () => {
             </div>
           )}
 
+          {/* Rest of the tab content remains the same... */}
           {activeTab === "demographics" && (
             <div className="space-y-6">
               {/* Age Distribution */}
@@ -490,14 +773,6 @@ export const Dashboard: React.FC = () => {
                         </div>
                         <div className="space-y-3">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-green-600">
-                              ✅ Sponsored
-                            </span>
-                            <span className="font-semibold">
-                              {genderStat.sponsored}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
                             <span className="text-sm text-orange-600">
                               ⏳ Need Sponsors
                             </span>
@@ -505,12 +780,15 @@ export const Dashboard: React.FC = () => {
                               {genderStat.unsponsored}
                             </span>
                           </div>
-                          <div className="flex justify-between items-center border-t pt-2">
-                            <span className="text-sm font-semibold text-gray-700">
-                              Sponsorship Rate
-                            </span>
-                            <span className="font-bold text-blue-600">
-                              {sponsorshipRate}%
+                          <div className="bg-gray-200 rounded-full h-3 overflow-hidden">
+                            <div
+                              className="bg-gradient-to-r from-green-400 to-green-500 h-3 rounded-full transition-all duration-500"
+                              style={{ width: `${sponsorshipRate}%` }}
+                            ></div>
+                          </div>
+                          <div className="text-center">
+                            <span className="text-sm font-bold text-gray-700">
+                              {sponsorshipRate}% Sponsored
                             </span>
                           </div>
                         </div>
@@ -521,24 +799,22 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {/* Education Levels */}
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-100">
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-6 border border-yellow-100">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
                   <BookOpen className="mr-2" size={20} />
-                  Education Level Distribution
+                  Education Levels
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                   {Object.entries(data.demographics.educationLevels).map(
                     ([level, count]) => (
                       <div
                         key={level}
-                        className="bg-white p-4 rounded-xl border border-purple-200 text-center"
+                        className="bg-white p-4 rounded-xl border border-yellow-200 text-center"
                       >
-                        <div className="text-2xl font-bold text-purple-600">
+                        <div className="text-xl font-bold text-gray-900">
                           {count}
                         </div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          {level}
-                        </div>
+                        <div className="text-sm text-gray-600">{level}</div>
                       </div>
                     )
                   )}
@@ -549,69 +825,85 @@ export const Dashboard: React.FC = () => {
 
           {activeTab === "schools" && (
             <div className="space-y-6">
-              <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl p-6 border border-indigo-100">
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-2xl p-6 border border-purple-100">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                  <Award className="mr-2" size={20} />
-                  School Performance Metrics
+                  <GraduationCap className="mr-2" size={20} />
+                  School Performance Overview
                 </h3>
-                <div className="space-y-4">
-                  {data.schools.metrics.slice(0, 8).map((school, index) => (
-                    <div
-                      key={school.id}
-                      className="bg-white p-4 rounded-xl border border-indigo-200"
-                    >
-                      <div className="flex items-center justify-between">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-white p-4 rounded-xl border border-purple-200 text-center">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {data.schools.total}
+                    </div>
+                    <div className="text-sm text-gray-600">Total Schools</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-purple-200 text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {data.schools.topPerforming}
+                    </div>
+                    <div className="text-sm text-gray-600">High Performing</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl border border-purple-200 text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {Math.round(
+                        data.schools.metrics.reduce(
+                          (acc, school) => acc + school.sponsorshipRate,
+                          0
+                        ) / data.schools.metrics.length
+                      )}
+                      %
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      Avg Sponsorship Rate
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-gray-900 mb-3">
+                    Top Performing Schools
+                  </h4>
+                  {data.schools.metrics
+                    .sort((a, b) => b.sponsorshipRate - a.sponsorshipRate)
+                    .slice(0, 5)
+                    .map((school) => (
+                      <div
+                        key={school.id}
+                        className="bg-white p-4 rounded-xl border border-purple-200 flex items-center justify-between"
+                      >
                         <div className="flex-1">
-                          <div className="flex items-center space-x-3">
-                            <div
-                              className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                                index === 0
-                                  ? "bg-yellow-500"
-                                  : index === 1
-                                  ? "bg-gray-400"
-                                  : index === 2
-                                  ? "bg-orange-500"
-                                  : "bg-indigo-500"
-                              }`}
-                            >
-                              {index + 1}
-                            </div>
-                            <div>
-                              <div className="font-semibold text-gray-900">
-                                {school.name}
-                              </div>
-                              <div className="text-sm text-gray-600 flex items-center">
-                                <MapPin size={12} className="mr-1" />
-                                {school.location}
-                              </div>
-                            </div>
+                          <div className="font-semibold text-gray-900">
+                            {school.name}
+                          </div>
+                          <div className="text-sm text-gray-600 flex items-center">
+                            <MapPin size={14} className="mr-1" />
+                            {school.location}
                           </div>
                         </div>
-                        <div className="text-right space-y-1">
+                        <div className="text-center mx-4">
                           <div className="text-lg font-bold text-gray-900">
-                            {school.totalChildren} children
+                            {school.totalChildren}
                           </div>
-                          <div className="text-sm text-green-600">
-                            ✅ {school.sponsoredChildren} sponsored
+                          <div className="text-xs text-gray-500">
+                            Total Children
                           </div>
-                          <div className="text-sm text-orange-600">
-                            ⏳ {school.unsponsoredChildren} need sponsors
+                        </div>
+                        <div className="text-center mx-4">
+                          <div className="text-lg font-bold text-green-600">
+                            {school.sponsoredChildren}
                           </div>
-                          <div
-                            className={`text-sm font-bold ${
-                              school.sponsorshipRate >= 80
-                                ? "text-green-600"
-                                : school.sponsorshipRate >= 50
-                                ? "text-yellow-600"
-                                : "text-red-600"
-                            }`}
-                          >
-                            {school.sponsorshipRate}% sponsored
+                          <div className="text-xs text-gray-500">Sponsored</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-bold text-purple-600">
+                            {school.sponsorshipRate}%
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Success Rate
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               </div>
             </div>
@@ -619,218 +911,235 @@ export const Dashboard: React.FC = () => {
 
           {activeTab === "activity" && (
             <div className="space-y-6">
-              {/* Recent Children */}
-              <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl p-6 border border-blue-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                  <Users className="mr-2" size={20} />
-                  Recently Added Children
-                </h3>
-                {data.trends.recentActivity.children.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Recent Children */}
+                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl p-6 border border-blue-100">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <Users className="mr-2" size={20} />
+                    New Children
+                  </h3>
                   <div className="space-y-3">
-                    {data.trends.recentActivity.children.map((child) => (
-                      <div
-                        key={child.id}
-                        className="bg-white p-4 rounded-xl border border-blue-200 flex items-center justify-between"
-                      >
-                        <div>
+                    {data.trends.recentActivity.children
+                      .slice(0, 5)
+                      .map((child, index) => (
+                        <div
+                          key={index}
+                          className="bg-white p-3 rounded-xl border border-blue-200"
+                        >
                           <div className="font-semibold text-gray-900">
-                            {child.firstName} {child.lastName}
+                            {child.fullName}
                           </div>
                           <div className="text-sm text-gray-600">
-                            {child.school.name} • {child.class}
+                            Age {child.age} • {child.schoolName}
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-500">
+                          <div className="text-xs text-blue-600">
+                            Added{" "}
                             {
                               formatDateTimeWithRelative(child.createdAt)
                                 .relative
                             }
                           </div>
-                          <div
-                            className={`text-xs px-2 py-1 rounded-full ${
-                              child.isSponsored
-                                ? "bg-green-100 text-green-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {child.isSponsored ? "Sponsored" : "Needs Sponsor"}
-                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">
-                    No recent children added
-                  </p>
-                )}
-              </div>
+                  <Link
+                    to="/children"
+                    className="block w-full text-center mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                  >
+                    View All Children
+                  </Link>
+                </div>
 
-              {/* Recent Sponsors */}
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                  <UserCheck className="mr-2" size={20} />
-                  Recently Added Sponsors
-                </h3>
-                {data.trends.recentActivity.sponsors.length > 0 ? (
+                {/* Recent Sponsors */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <Heart className="mr-2" size={20} />
+                    New Sponsors
+                  </h3>
                   <div className="space-y-3">
-                    {data.trends.recentActivity.sponsors.map((sponsor) => (
-                      <div
-                        key={sponsor.id}
-                        className="bg-white p-4 rounded-xl border border-green-200 flex items-center justify-between"
-                      >
-                        <div>
+                    {data.trends.recentActivity.sponsors
+                      .slice(0, 5)
+                      .map((sponsor, index) => (
+                        <div
+                          key={index}
+                          className="bg-white p-3 rounded-xl border border-green-200"
+                        >
                           <div className="font-semibold text-gray-900">
                             {sponsor.fullName}
                           </div>
-                          {sponsor.proxy && (
-                            <div className="text-sm text-purple-600">
-                              Via: {sponsor.proxy.fullName} (
-                              {sponsor.proxy.role})
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-600">
+                            {sponsor.email}
+                          </div>
+                          <div className="text-xs text-green-600">
+                            Joined{" "}
                             {
                               formatDateTimeWithRelative(sponsor.createdAt)
                                 .relative
                             }
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">
-                    No recent sponsors added
-                  </p>
-                )}
-              </div>
+                  <Link
+                    to="/sponsors"
+                    className="block w-full text-center mt-4 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
+                  >
+                    View All Sponsors
+                  </Link>
+                </div>
 
-              {/* Recent Sponsorships */}
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-100">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                  <Heart className="mr-2" size={20} />
-                  Recent Sponsorships Created
-                </h3>
-                {data.trends.recentActivity.sponsorships.length > 0 ? (
+                {/* Recent Sponsorships */}
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-100">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <Award className="mr-2" size={20} />
+                    New Sponsorships
+                  </h3>
                   <div className="space-y-3">
-                    {data.trends.recentActivity.sponsorships.map(
-                      (sponsorship) => (
+                    {data.trends.recentActivity.sponsorships
+                      .slice(0, 5)
+                      .map((sponsorship, index) => (
                         <div
-                          key={sponsorship.id}
-                          className="bg-white p-4 rounded-xl border border-purple-200"
+                          key={index}
+                          className="bg-white p-3 rounded-xl border border-purple-200"
                         >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-semibold text-gray-900">
-                                {sponsorship.sponsor.fullName} ❤️{" "}
-                                {sponsorship.child.firstName}{" "}
-                                {sponsorship.child.lastName}
-                              </div>
-                              {sponsorship.monthlyAmount && (
-                                <div className="text-sm text-green-600">
-                                  ${sponsorship.monthlyAmount}/month
-                                </div>
-                              )}
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm text-gray-500">
-                                {
-                                  formatDateTimeWithRelative(
-                                    sponsorship.createdAt
-                                  ).relative
-                                }
-                              </div>
-                              <div className="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">
-                                Active
-                              </div>
-                            </div>
+                          <div className="font-semibold text-gray-900">
+                            {sponsorship.sponsorName}
+                          </div>
+                          <div className="text-sm text-gray-600">
+                            ↔️ {sponsorship.childName}
+                          </div>
+                          <div className="text-xs text-purple-600">
+                            Started{" "}
+                            {
+                              formatDateTimeWithRelative(sponsorship.createdAt)
+                                .relative
+                            }
                           </div>
                         </div>
-                      )
-                    )}
+                      ))}
                   </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">
-                    No recent sponsorships created
-                  </p>
-                )}
+                  <Link
+                    to="/sponsorships"
+                    className="block w-full text-center mt-4 px-4 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors"
+                  >
+                    View All Sponsorships
+                  </Link>
+                </div>
               </div>
             </div>
           )}
         </div>
 
+        {/* Insights & Alerts */}
+        {data.insights.length > 0 && (
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+              <Target className="mr-3" size={24} />
+              Key Insights & Alerts
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {data.insights.map((insight, index) => {
+                const bgColor =
+                  insight.type === "warning"
+                    ? "from-yellow-50 to-orange-50 border-yellow-200"
+                    : insight.type === "info"
+                    ? "from-blue-50 to-indigo-50 border-blue-200"
+                    : "from-green-50 to-emerald-50 border-green-200";
+
+                const iconColor =
+                  insight.type === "warning"
+                    ? "text-yellow-600"
+                    : insight.type === "info"
+                    ? "text-blue-600"
+                    : "text-green-600";
+
+                const Icon =
+                  insight.type === "warning"
+                    ? Target
+                    : insight.type === "info"
+                    ? Eye
+                    : Award;
+
+                return (
+                  <div
+                    key={index}
+                    className={`bg-gradient-to-r ${bgColor} rounded-2xl p-6 border`}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <Icon className={iconColor} size={24} />
+                      <div className="flex-1">
+                        <h3 className="font-bold text-gray-900 mb-2">
+                          {insight.title}
+                        </h3>
+                        <p className="text-sm text-gray-700 mb-3">
+                          {insight.message}
+                        </p>
+                        <div className="text-2xl font-bold text-gray-900">
+                          {insight.value.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Quick Actions */}
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center">
-            <Target className="mr-3" size={28} />
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">
             Quick Actions
           </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Link
-              to="/register-child"
-              className="group relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 p-8 rounded-2xl text-white transform hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl"
+              to="/children/add"
+              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-2xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div className="relative flex items-center space-x-4">
-                <Plus size={32} className="text-white" />
+              <div className="flex items-center space-x-3">
+                <Plus size={24} />
                 <div>
-                  <h3 className="text-xl font-bold">Add New Child</h3>
-                  <p className="text-blue-100 text-sm">
-                    Register a child in need
-                  </p>
+                  <div className="font-bold">Add Child</div>
+                  <div className="text-sm opacity-90">Register new child</div>
                 </div>
               </div>
             </Link>
 
             <Link
-              to="/register-sponsor"
-              className="group relative overflow-hidden bg-gradient-to-br from-green-500 to-green-600 p-8 rounded-2xl text-white transform hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl"
+              to="/sponsors/add"
+              className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-2xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div className="relative flex items-center space-x-4">
-                <UserPlus size={32} className="text-white" />
+              <div className="flex items-center space-x-3">
+                <UserPlus size={24} />
                 <div>
-                  <h3 className="text-xl font-bold">Add New Sponsor</h3>
-                  <p className="text-green-100 text-sm">
-                    Register a new sponsor
-                  </p>
+                  <div className="font-bold">Add Sponsor</div>
+                  <div className="text-sm opacity-90">Register new sponsor</div>
                 </div>
               </div>
             </Link>
 
             <Link
-              to="/import"
-              className="group relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-600 p-8 rounded-2xl text-white transform hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl"
+              to="/children/import"
+              className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-2xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div className="relative flex items-center space-x-4">
-                <FileUp size={32} className="text-white" />
+              <div className="flex items-center space-x-3">
+                <FileUp size={24} />
                 <div>
-                  <h3 className="text-xl font-bold">Import from Excel</h3>
-                  <p className="text-purple-100 text-sm">
-                    Bulk import children data
-                  </p>
+                  <div className="font-bold">Import Data</div>
+                  <div className="text-sm opacity-90">Bulk import children</div>
                 </div>
               </div>
             </Link>
 
             <Link
-              to="/children"
-              className="group relative overflow-hidden bg-gradient-to-br from-indigo-500 to-indigo-600 p-8 rounded-2xl text-white transform hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl"
+              to="/sponsorships/create"
+              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white p-6 rounded-2xl hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div className="relative flex items-center space-x-4">
-                <Eye size={32} className="text-white" />
+              <div className="flex items-center space-x-3">
+                <Heart size={24} />
                 <div>
-                  <h3 className="text-xl font-bold">View All Children</h3>
-                  <p className="text-indigo-100 text-sm">
-                    Browse children database
-                  </p>
+                  <div className="font-bold">Create Match</div>
+                  <div className="text-sm opacity-90">New sponsorship</div>
                 </div>
               </div>
             </Link>

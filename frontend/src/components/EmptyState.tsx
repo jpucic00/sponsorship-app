@@ -12,7 +12,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-12 text-center">
-      <div className="text-8xl mb-6">👶</div>
       <h3 className="text-2xl font-bold text-gray-900 mb-4">
         No children found
       </h3>
