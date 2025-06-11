@@ -1,10 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "libsql"
-  url      = env("TURSO_DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db" // will be ignored
 }
 
 model Child {
@@ -29,12 +30,6 @@ model Child {
   // Child details
   story                 String?  // Story about the child
   comment               String?  // Volunteer comments
-  
-  // REMOVED: All image fields now handled by ChildPhoto model
-  // photoBase64           String?  
-  // photoMimeType         String?  
-  // photoFileName         String?  
-  // photoSize             Int?     
   
   // Tracking dates
   dateEnteredRegister   DateTime @default(now())

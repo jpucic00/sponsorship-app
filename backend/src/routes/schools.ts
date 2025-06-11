@@ -1,8 +1,14 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client'
+import { PrismaLibSQL } from '@prisma/adapter-libsql'
+
+const adapter = new PrismaLibSQL({
+  url: `${process.env.TURSO_DATABASE_URL}`,
+  authToken: `${process.env.TURSO_AUTH_TOKEN}`,
+})
+const prisma = new PrismaClient({ adapter })
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // GET all schools
 router.get('/', async (req, res) => {
