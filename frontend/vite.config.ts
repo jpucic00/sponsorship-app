@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
+    host: true, // Allow external connections
+    allowedHosts: ['all'], // Allow all hosts for development
     proxy: {
       '/api': {
        target: process.env.NODE_ENV === 'production' 
@@ -27,5 +29,20 @@ export default defineConfig({
         },
       }
     }
+  },
+  preview: {
+    port: 5173,
+    host: true,
+    allowedHosts: ['all']
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
   }
 })

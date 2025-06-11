@@ -13,9 +13,7 @@
     "build:frontend": "cd frontend && npm run build",
     "build:backend": "cd backend && npm run build",
     "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
-    "clean": "rm -rf node_modules && cd frontend && rm -rf node_modules && cd ../backend && rm -rf node_modules",
-    "railway:build": "npm run install:all && npm run build:frontend && npm run build:backend",
-    "railway:deploy": "npm run railway:build && npm run start:prod"
+    "clean": "rm -rf node_modules && cd frontend && rm -rf node_modules && cd ../backend && rm -rf node_modules"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
