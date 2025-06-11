@@ -184,16 +184,6 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
       <div className="max-w-7xl mx-auto px-4 space-y-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-4">
-            Sponsors Directory
-          </h1>
-          <p className="text-gray-600 text-xl">
-            {pagination.totalCount} sponsors found
-          </p>
-        </div>
-
         {/* Search and Filters */}
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
           <div className="space-y-6">
@@ -645,78 +635,6 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
             </div>
           </div>
         ) : null}
-
-        {/* Statistics - Show with reduced opacity when loading */}
-        <div
-          className={`grid grid-cols-1 md:grid-cols-4 gap-6 transition-opacity duration-200 ${
-            loading ? "opacity-60" : "opacity-100"
-          }`}
-        >
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-            <div className="flex items-center space-x-3">
-              <Users className="text-green-600" size={28} />
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                  Total Sponsors
-                </p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {pagination.totalCount}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-            <div className="flex items-center space-x-3">
-              <Heart className="text-red-600" size={28} />
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                  Current Page
-                </p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {sponsors.reduce(
-                    (total, sponsor) => total + sponsor.sponsorships.length,
-                    0
-                  )}{" "}
-                  Sponsorships
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-            <div className="flex items-center space-x-3">
-              <Clock className="text-yellow-600" size={28} />
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                  Current Page
-                </p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {
-                    sponsors.filter(
-                      (sponsor) => sponsor.sponsorships.length === 0
-                    ).length
-                  }{" "}
-                  Available
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-            <div className="flex items-center space-x-3">
-              <UserCheck className="text-purple-600" size={28} />
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
-                  Page Info
-                </p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {pagination.currentPage} of {pagination.totalPages}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Filter Summary - Show with reduced opacity when loading */}
         {hasActiveFilters && (

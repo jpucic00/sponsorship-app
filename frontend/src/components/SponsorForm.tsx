@@ -138,16 +138,6 @@ export const SponsorForm: React.FC<SponsorFormProps> = ({
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
       <div className="max-w-4xl mx-auto px-4">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
-            Sponsor Registration
-          </h1>
-          <p className="text-gray-600 text-lg">
-            Help us connect generous sponsors with children in need
-          </p>
-        </div>
-
         {/* Form Container */}
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8 transition-all duration-500">
           <div className="flex items-center space-x-3 mb-8">
