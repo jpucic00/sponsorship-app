@@ -21,15 +21,6 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'public')));
-  
-  // Catch all handler: send back React's index.html file
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-  });
-}
-
 // Middleware
 app.use(helmet());
 app.use(cors({
@@ -39,7 +30,7 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' })); // Increase limit for base64 images
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Routes
+// API Routes - MUST come before static file serving
 app.use('/api/children', childrenRoutes);
 app.use('/api/sponsors', sponsorsRoutes);
 app.use('/api/sponsorships', sponsorshipsRoutes);
@@ -53,6 +44,30 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Production static file serving - AFTER API routes
+if (process.env.NODE_ENV === 'production') {
+  // Serve static files from the frontend build directory
+  const frontendBuildPath = path.join(__dirname, '../../frontend/dist');
+  
+  console.log('Serving static files from:', frontendBuildPath);
+  app.use(express.static(frontendBuildPath));
+  
+  // Catch all handler for non-API routes: send back React's index.html file
+  app.get('*', (req, res) => {
+    const indexPath = path.join(frontendBuildPath, 'index.html');
+    console.log('Serving index.html from:', indexPath);
+    
+    // Check if file exists
+    const fs = require('fs');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      console.error('index.html not found at:', indexPath);
+      res.status(404).send('Frontend build files not found. Please run "npm run build" first.');
+    }
+  });
+}
+
 // Error handling
 app.use((err: any, req: any, res: any, next: any) => {
   console.error(err.stack);
@@ -61,6 +76,9 @@ app.use((err: any, req: any, res: any, next: any) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Running in production mode with static file serving');
+  }
 });
 
 // Graceful shutdown
