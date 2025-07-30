@@ -1,4 +1,4 @@
-name: Daily Turso Database Backup
+name: Minutely Turso Database Backup
 
 on:
   schedule:
@@ -19,16 +19,6 @@ jobs:
           # Use a token that can push to the repo
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-
-      - name: Install Turso CLI
-        run: |
-          curl -sSfL https://get.tur.so/install.sh | bash
-          echo "$HOME/.turso/bin" >> $GITHUB_PATH
-
       - name: Create backup directory
         run: |
           mkdir -p database-backups
@@ -39,58 +29,182 @@ jobs:
           echo "timestamp=$(date -u '+%Y-%m-%d_%H-%M-%S')" >> $GITHUB_OUTPUT
           echo "iso_timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
 
-      - name: Authenticate with Turso
+      - name: Get organization info
+        id: org_info
         run: |
-          # Turso CLI will automatically use the TURSO_API_TOKEN environment variable
-          echo "Using TURSO_API_TOKEN for authentication"
-        env:
-          TURSO_API_TOKEN: ${{ secrets.TURSO_API_TOKEN }}
+          # Get current user/organization info
+          ORG_RESPONSE=$(curl -s -L 'https://api.turso.tech/v1/current-user' \
+            -H 'Authorization: Bearer ${{ secrets.TURSO_API_TOKEN }}')
 
-      - name: Create temporary backup database
+          echo "Response: $ORG_RESPONSE"
+
+          # Extract username - this will be the organization name for personal accounts
+          ORG_NAME=$(echo "$ORG_RESPONSE" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
+
+          if [ -z "$ORG_NAME" ]; then
+            echo "Failed to get organization name"
+            exit 1
+          fi
+
+          echo "Organization: $ORG_NAME"
+          echo "org_name=$ORG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create temporary backup database via API
+        id: create_backup
         run: |
           # Create a temporary database from your main database at current point in time
           BACKUP_DB_NAME="backup-temp-${{ steps.timestamp.outputs.timestamp }}"
           echo "BACKUP_DB_NAME=$BACKUP_DB_NAME" >> $GITHUB_ENV
 
-          # Replace 'your-database-name' with your actual database name
-          turso db create $BACKUP_DB_NAME --from-db ${{ vars.TURSO_DATABASE_NAME }} --timestamp ${{ steps.timestamp.outputs.iso_timestamp }}
-        env:
-          TURSO_API_TOKEN: ${{ secrets.TURSO_API_TOKEN }}
+          # Create backup database using Platform API
+          RESPONSE=$(curl -s -L -X POST \
+            "https://api.turso.tech/v1/organizations/${{ steps.org_info.outputs.org_name }}/databases" \
+            -H 'Authorization: Bearer ${{ secrets.TURSO_API_TOKEN }}' \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"name\": \"$BACKUP_DB_NAME\",
+              \"group\": \"default\",
+              \"seed\": {
+                \"type\": \"database\",
+                \"name\": \"${{ vars.TURSO_DATABASE_NAME }}\",
+                \"timestamp\": \"${{ steps.timestamp.outputs.iso_timestamp }}\"
+              }
+            }")
 
-      - name: Export database to SQLite file
+          echo "Create response: $RESPONSE"
+
+          # Check if creation was successful
+          HOSTNAME=$(echo "$RESPONSE" | grep -o '"Hostname":"[^"]*"' | cut -d'"' -f4)
+
+          if [ -z "$HOSTNAME" ]; then
+            echo "Failed to create backup database"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+
+          echo "backup_hostname=$HOSTNAME" >> $GITHUB_OUTPUT
+          echo "Created backup database: $BACKUP_DB_NAME at $HOSTNAME"
+
+      - name: Wait for database to be ready
         run: |
-          # Wait a moment for database to be ready
+          echo "Waiting 30 seconds for database to be ready..."
           sleep 30
 
-          # Download the backup database as SQLite file
-          DUMP_FILE="database-backups/backup_${{ steps.timestamp.outputs.timestamp }}.db"
-          echo "DUMP_FILE=$DUMP_FILE" >> $GITHUB_ENV
-
-          # This creates a local SQLite file from the Turso database
-          turso db shell $BACKUP_DB_NAME ".backup $DUMP_FILE"
-        env:
-          TURSO_API_TOKEN: ${{ secrets.TURSO_API_TOKEN }}
-
-      - name: Create SQL dump file
+      - name: Create database token for backup database
+        id: db_token
         run: |
-          # Also create a SQL dump for easier inspection
-          SQL_DUMP_FILE="database-backups/backup_${{ steps.timestamp.outputs.timestamp }}.sql"
+          # Create a database token for the backup database
+          TOKEN_RESPONSE=$(curl -s -L -X POST \
+            "https://api.turso.tech/v1/organizations/${{ steps.org_info.outputs.org_name }}/databases/$BACKUP_DB_NAME/auth/tokens" \
+            -H 'Authorization: Bearer ${{ secrets.TURSO_API_TOKEN }}')
+
+          echo "Token response: $TOKEN_RESPONSE"
+
+          # Extract the token
+          DB_TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"jwt":"[^"]*"' | cut -d'"' -f4)
+
+          if [ -z "$DB_TOKEN" ]; then
+            echo "Failed to create database token"
+            echo "Response: $TOKEN_RESPONSE"
+            exit 1
+          fi
+
+          echo "db_token=$DB_TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Install libsql-client
+        run: |
+          # Install Node.js and libsql client to dump the database
+          npm install -g @libsql/client
+
+      - name: Create backup script
+        run: |
+          cat > backup_script.js << 'EOF'
+          const { createClient } = require('@libsql/client');
+          const fs = require('fs');
+
+          async function createBackup() {
+            const client = createClient({
+              url: process.env.BACKUP_DB_URL,
+              authToken: process.env.BACKUP_DB_TOKEN
+            });
+            
+            try {
+              // Get all table names
+              const tables = await client.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+              
+              let sqlDump = "PRAGMA foreign_keys=OFF;\nBEGIN TRANSACTION;\n\n";
+              
+              for (const table of tables.rows) {
+                const tableName = table.name;
+                
+                // Get table schema
+                const schema = await client.execute(`SELECT sql FROM sqlite_master WHERE type='table' AND name='${tableName}'`);
+                if (schema.rows.length > 0) {
+                  sqlDump += schema.rows[0].sql + ";\n\n";
+                }
+                
+                // Get table data
+                const data = await client.execute(`SELECT * FROM ${tableName}`);
+                
+                if (data.rows.length > 0) {
+                  for (const row of data.rows) {
+                    const columns = Object.keys(row);
+                    const values = columns.map(col => {
+                      const val = row[col];
+                      if (val === null) return 'NULL';
+                      if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
+                      return val;
+                    });
+                    
+                    sqlDump += `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${values.join(', ')});\n`;
+                  }
+                  sqlDump += "\n";
+                }
+              }
+              
+              sqlDump += "COMMIT;\n";
+              
+              // Write SQL dump to file
+              fs.writeFileSync(process.env.SQL_DUMP_FILE, sqlDump);
+              console.log(`SQL dump created: ${process.env.SQL_DUMP_FILE}`);
+              
+            } catch (error) {
+              console.error('Error creating backup:', error);
+              process.exit(1);
+            } finally {
+              client.close();
+            }
+          }
+
+          createBackup();
+          EOF
+
+      - name: Create SQL dump from backup database
+        run: |
+          # Set environment variables for the backup script
+          export BACKUP_DB_URL="libsql://${{ steps.create_backup.outputs.backup_hostname }}"
+          export BACKUP_DB_TOKEN="${{ steps.db_token.outputs.db_token }}"
+          export SQL_DUMP_FILE="database-backups/backup_${{ steps.timestamp.outputs.timestamp }}.sql"
+
           echo "SQL_DUMP_FILE=$SQL_DUMP_FILE" >> $GITHUB_ENV
 
-          # Create SQL dump using sqlite3
-          sudo apt-get update && sudo apt-get install -y sqlite3
-          sqlite3 $DUMP_FILE .dump > $SQL_DUMP_FILE
+          # Run the backup script
+          node backup_script.js
 
-          # Compress the files to save space
-          gzip $DUMP_FILE
-          gzip $SQL_DUMP_FILE
+      - name: Compress backup file
+        run: |
+          # Compress the SQL dump to save space
+          gzip "$SQL_DUMP_FILE"
+          echo "Compressed backup created: ${SQL_DUMP_FILE}.gz"
 
       - name: Clean up temporary database
         run: |
           # Delete the temporary backup database to avoid cluttering your Turso account
-          turso db destroy $BACKUP_DB_NAME --yes
-        env:
-          TURSO_API_TOKEN: ${{ secrets.TURSO_API_TOKEN }}
+          curl -s -L -X DELETE \
+            "https://api.turso.tech/v1/organizations/${{ steps.org_info.outputs.org_name }}/databases/$BACKUP_DB_NAME" \
+            -H 'Authorization: Bearer ${{ secrets.TURSO_API_TOKEN }}'
+
+          echo "Temporary database $BACKUP_DB_NAME deleted"
 
       - name: Create backup metadata
         run: |
@@ -101,18 +215,17 @@ jobs:
             "iso_timestamp": "${{ steps.timestamp.outputs.iso_timestamp }}",
             "source_database": "${{ vars.TURSO_DATABASE_NAME }}",
             "backup_files": [
-              "backup_${{ steps.timestamp.outputs.timestamp }}.db.gz",
               "backup_${{ steps.timestamp.outputs.timestamp }}.sql.gz"
             ],
             "created_by": "github-actions",
-            "workflow_run": "${{ github.run_id }}"
+            "workflow_run": "${{ github.run_id }}",
+            "organization": "${{ steps.org_info.outputs.org_name }}"
           }
           EOF
 
       - name: Clean up old backups (keep last 60 minutes)
         run: |
           # Remove backup files older than 60 minutes to prevent repository from growing too large
-          find database-backups -name "backup_*.db.gz" -mmin +60 -delete || true
           find database-backups -name "backup_*.sql.gz" -mmin +60 -delete || true
           find database-backups -name "backup_*_metadata.json" -mmin +60 -delete || true
 
@@ -147,15 +260,15 @@ jobs:
           tag_name: backup-${{ steps.timestamp.outputs.timestamp }}
           release_name: Database Backup ${{ steps.timestamp.outputs.timestamp }}
           body: |
-            Automated daily backup of Turso database
+            Automated minutely backup of Turso database
 
             **Backup Details:**
             - Timestamp: ${{ steps.timestamp.outputs.timestamp }}
             - Source Database: ${{ vars.TURSO_DATABASE_NAME }}
-            - Files: SQLite database and SQL dump (both gzipped)
+            - Organization: ${{ steps.org_info.outputs.org_name }}
+            - Files: SQL dump (gzipped)
 
             **Files in this backup:**
-            - `backup_${{ steps.timestamp.outputs.timestamp }}.db.gz` - SQLite database file
             - `backup_${{ steps.timestamp.outputs.timestamp }}.sql.gz` - SQL dump file
             - `backup_${{ steps.timestamp.outputs.timestamp }}_metadata.json` - Backup metadata
           draft: false
