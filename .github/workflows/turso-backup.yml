@@ -33,7 +33,7 @@ jobs:
         id: org_info
         run: |
           # Debug: Check if token exists and basic format
-          echo "🔍 Debugging API token..."
+          echo "Debugging API token..."
           
           if [ -z "${{ secrets.TURSO_API_TOKEN }}" ]; then
             echo "❌ TURSO_API_TOKEN secret is empty or not set!"
@@ -47,10 +47,10 @@ jobs:
           TOKEN_START=${TOKEN:0:10}
           TOKEN_END=${TOKEN: -10}
           
-          echo "✅ Token exists"
-          echo "📏 Token length: $TOKEN_LENGTH characters"
-          echo "🔤 Token starts with: ${TOKEN_START}..."
-          echo "🔤 Token ends with: ...${TOKEN_END}"
+          echo "Token exists"
+          echo "Token length: $TOKEN_LENGTH characters"
+          echo "Token starts with: ${TOKEN_START}..."
+          echo "Token ends with: ...${TOKEN_END}"
           
           # Check for common issues
           if [[ "$TOKEN" == *" "* ]]; then
@@ -520,13 +520,13 @@ jobs:
           CLEAN_LENGTH=${#CLEAN_TOKEN}
           
           if [ "$TOKEN_LENGTH" != "$CLEAN_LENGTH" ]; then
-            echo "🧹 Cleaned token: removed $(($TOKEN_LENGTH - $CLEAN_LENGTH)) whitespace characters"
+            echo "Cleaned token: removed $(($TOKEN_LENGTH - $CLEAN_LENGTH)) whitespace characters"
             TOKEN="$CLEAN_TOKEN"
           fi
           
           # Validate the API token format (JWT should have 3 parts separated by dots)
           DOT_COUNT=$(echo "$TOKEN" | tr -cd '.' | wc -c)
-          echo "🔍 JWT dot count: $DOT_COUNT (should be 2 for valid JWT)"
+          echo "JWT dot count: $DOT_COUNT (should be 2 for valid JWT)"
           
           if [ "$DOT_COUNT" != "2" ]; then
             echo "❌ Token doesn't look like a valid JWT (should have exactly 2 dots)"
@@ -535,7 +535,7 @@ jobs:
           fi
           
           # Validate with Turso API
-          echo "🔐 Validating token with Turso API..."
+          echo "Validating token with Turso API..."
           VALIDATE_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -L 'https://api.turso.tech/v1/auth/validate' \
             -H "Authorization: Bearer $TOKEN")
           
@@ -543,13 +543,13 @@ jobs:
           HTTP_CODE=$(echo "$VALIDATE_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
           API_RESPONSE=$(echo "$VALIDATE_RESPONSE" | sed '/HTTP_CODE:/d')
           
-          echo "📡 HTTP Status Code: $HTTP_CODE"
-          echo "📋 API Response: $API_RESPONSE"
+          echo "HTTP Status Code: $HTTP_CODE"
+          echo "API Response: $API_RESPONSE"
           
           if [ "$HTTP_CODE" != "200" ]; then
             echo "❌ API Token validation failed with HTTP $HTTP_CODE"
             echo ""
-            echo "🔧 Troubleshooting steps:"
+            echo "Troubleshooting steps:"
             echo "1. Check if you created a Platform API token (not database token):"
             echo "   turso auth api-tokens create github-actions-backup"
             echo ""
@@ -565,14 +565,14 @@ jobs:
             exit 1
           fi
           
-          echo "✅ API token is valid!"
+          echo "API token is valid!"
           
           # Get current user/organization info
-          echo "🏢 Getting organization info..."
+          echo "Getting organization info..."
           ORG_RESPONSE=$(curl -s -L 'https://api.turso.tech/v1/current-user' \
             -H "Authorization: Bearer $TOKEN")
           
-          echo "👤 User response: $ORG_RESPONSE"
+          echo "User response: $ORG_RESPONSE"
           
           # Extract username - this will be the organization name for personal accounts
           ORG_NAME=$(echo "$ORG_RESPONSE" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
@@ -583,7 +583,7 @@ jobs:
             exit 1
           fi
           
-          echo "✅ Organization: $ORG_NAME"
+          echo "Organization: $ORG_NAME"
           echo "org_name=$ORG_NAME" >> $GITHUB_OUTPUT
 
       - name: Create temporary backup database via API
