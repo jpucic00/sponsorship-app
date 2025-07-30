@@ -36,7 +36,7 @@ jobs:
           echo "Debugging API token..."
           
           if [ -z "${{ secrets.TURSO_API_TOKEN }}" ]; then
-            echo "❌ TURSO_API_TOKEN secret is empty or not set!"
+            echo "TURSO_API_TOKEN secret is empty or not set!"
             echo "Please add the TURSO_API_TOKEN secret to your repository."
             exit 1
           fi
@@ -529,7 +529,7 @@ jobs:
           echo "JWT dot count: $DOT_COUNT (should be 2 for valid JWT)"
           
           if [ "$DOT_COUNT" != "2" ]; then
-            echo "❌ Token doesn't look like a valid JWT (should have exactly 2 dots)"
+            echo "Token doesn't look like a valid JWT (should have exactly 2 dots)"
             echo "Expected format: header.payload.signature"
             exit 1
           fi
@@ -547,7 +547,7 @@ jobs:
           echo "API Response: $API_RESPONSE"
           
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "❌ API Token validation failed with HTTP $HTTP_CODE"
+            echo "API Token validation failed with HTTP $HTTP_CODE"
             echo ""
             echo "Troubleshooting steps:"
             echo "1. Check if you created a Platform API token (not database token):"
@@ -578,7 +578,7 @@ jobs:
           ORG_NAME=$(echo "$ORG_RESPONSE" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
           
           if [ -z "$ORG_NAME" ]; then
-            echo "❌ Failed to extract organization name from response"
+            echo "Failed to extract organization name from response"
             echo "Full response: $ORG_RESPONSE"
             exit 1
           fi
