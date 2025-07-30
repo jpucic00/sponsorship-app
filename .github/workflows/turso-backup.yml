@@ -29,24 +29,56 @@ jobs:
           echo "timestamp=$(date -u '+%Y-%m-%d_%H-%M-%S')" >> $GITHUB_OUTPUT
           echo "iso_timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
 
-      - name: Get organization info
+      - name: Validate API token and get organization info
         id: org_info
         run: |
+          # First validate the API token
+          echo "Validating API token..."
+          VALIDATE_RESPONSE=$(curl -s -L 'https://api.turso.tech/v1/auth/validate' \
+            -H 'Authorization: Bearer ${{ secrets.TURSO_API_TOKEN }}')
+
+          echo "Validation response: $VALIDATE_RESPONSE"
+
+          # Check if validation was successful
+          if echo "$VALIDATE_RESPONSE" | grep -q '"error"'; then
+            echo "❌ API Token validation failed!"
+            echo "Response: $VALIDATE_RESPONSE"
+            echo ""
+            echo "🔧 To fix this issue:"
+            echo "1. Create a new API token:"
+            echo "   turso auth login"
+            echo "   turso auth api-tokens create github-actions-backup"
+            echo "2. Update the TURSO_API_TOKEN secret in your repository"
+            echo "3. Make sure the token is copied exactly without extra spaces"
+            exit 1
+          fi
+
+          echo "✅ API token is valid"
+
           # Get current user/organization info
+          echo "Getting organization info..."
           ORG_RESPONSE=$(curl -s -L 'https://api.turso.tech/v1/current-user' \
             -H 'Authorization: Bearer ${{ secrets.TURSO_API_TOKEN }}')
 
-          echo "Response: $ORG_RESPONSE"
+          echo "User response: $ORG_RESPONSE"
 
           # Extract username - this will be the organization name for personal accounts
           ORG_NAME=$(echo "$ORG_RESPONSE" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
 
           if [ -z "$ORG_NAME" ]; then
-            echo "Failed to get organization name"
+            echo "❌ Failed to get organization name"
+            echo "This might mean:"
+            echo "1. You're using an expired token"
+            echo "2. You're using the wrong type of token"
+            echo "3. The token doesn't have the right permissions"
+            echo ""
+            echo "🔧 Try creating a new Platform API token:"
+            echo "   turso auth login"
+            echo "   turso auth api-tokens create github-actions-backup"
             exit 1
           fi
 
-          echo "Organization: $ORG_NAME"
+          echo "✅ Organization: $ORG_NAME"
           echo "org_name=$ORG_NAME" >> $GITHUB_OUTPUT
 
       - name: Create temporary backup database via API
