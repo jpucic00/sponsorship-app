@@ -23,6 +23,7 @@ jobs:
         run: |
           echo "timestamp=$(date -u '+%Y-%m-%d_%H-%M-%S')" >> $GITHUB_OUTPUT
           echo "iso_timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+          echo "db_safe_timestamp=$(date -u '+%Y-%m-%d-%H-%M-%S')" >> $GITHUB_OUTPUT
 
       - name: Debug and validate API token
         id: org_info
@@ -90,7 +91,7 @@ jobs:
       - name: Create temporary backup database
         id: create_backup
         run: |
-          BACKUP_DB_NAME="backup-temp-${{ steps.timestamp.outputs.timestamp }}"
+          BACKUP_DB_NAME="backup-temp-${{ steps.timestamp.outputs.db_safe_timestamp }}"
           echo "BACKUP_DB_NAME=$BACKUP_DB_NAME" >> $GITHUB_ENV
 
           echo "Creating backup database: $BACKUP_DB_NAME"
