@@ -536,7 +536,7 @@ jobs:
           
           # Validate with Turso API
           echo "Validating token with Turso API..."
-          VALIDATE_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -L 'https://api.turso.tech/v1/auth/validate' \
+          VALIDATE_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -L https://api.turso.tech/v1/auth/validate \
             -H "Authorization: Bearer $TOKEN")
           
           # Split response and HTTP code
@@ -554,7 +554,7 @@ jobs:
             echo "   turso auth api-tokens create github-actions-backup"
             echo ""
             echo "2. Verify the token in your terminal:"
-            echo "   curl -L 'https://api.turso.tech/v1/auth/validate' -H 'Authorization: Bearer YOUR_TOKEN'"
+            echo "   curl -L https://api.turso.tech/v1/auth/validate -H \"Authorization: Bearer YOUR_TOKEN\""
             echo ""
             echo "3. If validation fails locally too, create a new token:"
             echo "   turso auth api-tokens list"
@@ -569,7 +569,7 @@ jobs:
           
           # Get current user/organization info
           echo "Getting organization info..."
-          ORG_RESPONSE=$(curl -s -L 'https://api.turso.tech/v1/current-user' \
+          ORG_RESPONSE=$(curl -s -L https://api.turso.tech/v1/current-user \
             -H "Authorization: Bearer $TOKEN")
           
           echo "User response: $ORG_RESPONSE"
