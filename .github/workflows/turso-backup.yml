@@ -2,7 +2,7 @@ name: Daily Turso Database Backup
 
 on:
   schedule:
-    # Run daily at 2:00 AM UTC (adjust timezone as needed)
+    # Run every minute
     - cron: "* * * * *"
 
   # Allow manual triggering for testing
@@ -41,10 +41,8 @@ jobs:
 
       - name: Authenticate with Turso
         run: |
-          # Create a temporary auth token (this should be set as a repository secret)
-          turso auth api-tokens create temp-backup-token --expiration 1h > temp_token.txt
-          export TURSO_TOKEN=$(cat temp_token.txt | grep -oP 'Token: \K.*')
-          echo "TURSO_TOKEN=$TURSO_TOKEN" >> $GITHUB_ENV
+          # Turso CLI will automatically use the TURSO_API_TOKEN environment variable
+          echo "Using TURSO_API_TOKEN for authentication"
         env:
           TURSO_API_TOKEN: ${{ secrets.TURSO_API_TOKEN }}
 
@@ -111,12 +109,12 @@ jobs:
           }
           EOF
 
-      - name: Clean up old backups (keep last 30 days)
+      - name: Clean up old backups (keep last 60 minutes)
         run: |
-          # Remove backup files older than 30 days to prevent repository from growing too large
-          find database-backups -name "backup_*.db.gz" -mtime +30 -delete || true
-          find database-backups -name "backup_*.sql.gz" -mtime +30 -delete || true
-          find database-backups -name "backup_*_metadata.json" -mtime +30 -delete || true
+          # Remove backup files older than 60 minutes to prevent repository from growing too large
+          find database-backups -name "backup_*.db.gz" -mmin +60 -delete || true
+          find database-backups -name "backup_*.sql.gz" -mmin +60 -delete || true
+          find database-backups -name "backup_*_metadata.json" -mmin +60 -delete || true
 
       - name: Configure Git
         run: |
@@ -135,7 +133,7 @@ jobs:
           fi
 
           # Commit the backup files
-          git commit -m "🗄️ Daily database backup - ${{ steps.timestamp.outputs.timestamp }}"
+          git commit -m "🗄️ Minutely database backup - ${{ steps.timestamp.outputs.timestamp }}"
 
           # Push to the repository
           git push
