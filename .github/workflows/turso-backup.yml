@@ -1,0 +1,164 @@
+name: Daily Turso Database Backup
+
+on:
+  schedule:
+    # Run daily at 2:00 AM UTC (adjust timezone as needed)
+    - cron: "* * * * *"
+
+  # Allow manual triggering for testing
+  workflow_dispatch:
+
+jobs:
+  backup-database:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Use a token that can push to the repo
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install Turso CLI
+        run: |
+          curl -sSfL https://get.tur.so/install.sh | bash
+          echo "$HOME/.turso/bin" >> $GITHUB_PATH
+
+      - name: Create backup directory
+        run: |
+          mkdir -p database-backups
+
+      - name: Get current timestamp
+        id: timestamp
+        run: |
+          echo "timestamp=$(date -u '+%Y-%m-%d_%H-%M-%S')" >> $GITHUB_OUTPUT
+          echo "iso_timestamp=$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      - name: Authenticate with Turso
+        run: |
+          # Create a temporary auth token (this should be set as a repository secret)
+          turso auth api-tokens create temp-backup-token --expiration 1h > temp_token.txt
+          export TURSO_TOKEN=$(cat temp_token.txt | grep -oP 'Token: \K.*')
+          echo "TURSO_TOKEN=$TURSO_TOKEN" >> $GITHUB_ENV
+        env:
+          TURSO_API_TOKEN: ${{ secrets.TURSO_API_TOKEN }}
+
+      - name: Create temporary backup database
+        run: |
+          # Create a temporary database from your main database at current point in time
+          BACKUP_DB_NAME="backup-temp-${{ steps.timestamp.outputs.timestamp }}"
+          echo "BACKUP_DB_NAME=$BACKUP_DB_NAME" >> $GITHUB_ENV
+
+          # Replace 'your-database-name' with your actual database name
+          turso db create $BACKUP_DB_NAME --from-db ${{ vars.TURSO_DATABASE_NAME }} --timestamp ${{ steps.timestamp.outputs.iso_timestamp }}
+        env:
+          TURSO_API_TOKEN: ${{ secrets.TURSO_API_TOKEN }}
+
+      - name: Export database to SQLite file
+        run: |
+          # Wait a moment for database to be ready
+          sleep 30
+
+          # Download the backup database as SQLite file
+          DUMP_FILE="database-backups/backup_${{ steps.timestamp.outputs.timestamp }}.db"
+          echo "DUMP_FILE=$DUMP_FILE" >> $GITHUB_ENV
+
+          # This creates a local SQLite file from the Turso database
+          turso db shell $BACKUP_DB_NAME ".backup $DUMP_FILE"
+        env:
+          TURSO_API_TOKEN: ${{ secrets.TURSO_API_TOKEN }}
+
+      - name: Create SQL dump file
+        run: |
+          # Also create a SQL dump for easier inspection
+          SQL_DUMP_FILE="database-backups/backup_${{ steps.timestamp.outputs.timestamp }}.sql"
+          echo "SQL_DUMP_FILE=$SQL_DUMP_FILE" >> $GITHUB_ENV
+
+          # Create SQL dump using sqlite3
+          sudo apt-get update && sudo apt-get install -y sqlite3
+          sqlite3 $DUMP_FILE .dump > $SQL_DUMP_FILE
+
+          # Compress the files to save space
+          gzip $DUMP_FILE
+          gzip $SQL_DUMP_FILE
+
+      - name: Clean up temporary database
+        run: |
+          # Delete the temporary backup database to avoid cluttering your Turso account
+          turso db destroy $BACKUP_DB_NAME --yes
+        env:
+          TURSO_API_TOKEN: ${{ secrets.TURSO_API_TOKEN }}
+
+      - name: Create backup metadata
+        run: |
+          # Create a metadata file with backup information
+          cat > database-backups/backup_${{ steps.timestamp.outputs.timestamp }}_metadata.json << EOF
+          {
+            "timestamp": "${{ steps.timestamp.outputs.timestamp }}",
+            "iso_timestamp": "${{ steps.timestamp.outputs.iso_timestamp }}",
+            "source_database": "${{ vars.TURSO_DATABASE_NAME }}",
+            "backup_files": [
+              "backup_${{ steps.timestamp.outputs.timestamp }}.db.gz",
+              "backup_${{ steps.timestamp.outputs.timestamp }}.sql.gz"
+            ],
+            "created_by": "github-actions",
+            "workflow_run": "${{ github.run_id }}"
+          }
+          EOF
+
+      - name: Clean up old backups (keep last 30 days)
+        run: |
+          # Remove backup files older than 30 days to prevent repository from growing too large
+          find database-backups -name "backup_*.db.gz" -mtime +30 -delete || true
+          find database-backups -name "backup_*.sql.gz" -mtime +30 -delete || true
+          find database-backups -name "backup_*_metadata.json" -mtime +30 -delete || true
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Commit and push backup files
+        run: |
+          # Add all new backup files
+          git add database-backups/
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No new backup files to commit"
+            exit 0
+          fi
+
+          # Commit the backup files
+          git commit -m "🗄️ Daily database backup - ${{ steps.timestamp.outputs.timestamp }}"
+
+          # Push to the repository
+          git push
+
+      - name: Create release with backup files (optional)
+        if: github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: backup-${{ steps.timestamp.outputs.timestamp }}
+          release_name: Database Backup ${{ steps.timestamp.outputs.timestamp }}
+          body: |
+            Automated daily backup of Turso database
+
+            **Backup Details:**
+            - Timestamp: ${{ steps.timestamp.outputs.timestamp }}
+            - Source Database: ${{ vars.TURSO_DATABASE_NAME }}
+            - Files: SQLite database and SQL dump (both gzipped)
+
+            **Files in this backup:**
+            - `backup_${{ steps.timestamp.outputs.timestamp }}.db.gz` - SQLite database file
+            - `backup_${{ steps.timestamp.outputs.timestamp }}.sql.gz` - SQL dump file
+            - `backup_${{ steps.timestamp.outputs.timestamp }}_metadata.json` - Backup metadata
+          draft: false
+          prerelease: false
