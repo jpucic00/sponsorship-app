@@ -143,8 +143,15 @@ jobs:
           DB_TOKEN=$(echo "$BODY" | grep -o '"jwt":"[^"]*"' | cut -d'"' -f4)
           echo "db_token=$DB_TOKEN" >> $GITHUB_OUTPUT
 
-      - name: Install libsql-client
-        run: npm install -g @libsql/client
+      - name: Setup Node.js and install dependencies
+        run: |
+          # Initialize a package.json and install libsql client locally
+          npm init -y
+          npm install @libsql/client
+          echo "Installed libsql client"
+
+          # Verify installation
+          npm list @libsql/client
 
       - name: Create backup script
         run: |
