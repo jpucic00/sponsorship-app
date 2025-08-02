@@ -1,8 +1,9 @@
-name: Minutely Turso Database Backup
+name: Daily Turso Database Backup
 
 on:
   schedule:
-    - cron: "* * * * *"
+    # Run daily at 2:00 AM UTC
+    - cron: "0 2 * * *"
   workflow_dispatch:
 
 jobs:
@@ -14,6 +15,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
       - name: Create backup directory
         run: mkdir -p database-backups
@@ -251,8 +253,8 @@ jobs:
 
       - name: Clean up old backups
         run: |
-          find database-backups -name "backup_*.sql.gz" -mmin +60 -delete || true
-          find database-backups -name "backup_*_metadata.json" -mmin +60 -delete || true
+          find database-backups -name "backup_*.sql.gz" -mtime +30 -delete || true
+          find database-backups -name "backup_*_metadata.json" -mtime +30 -delete || true
 
       - name: Configure Git
         run: |
@@ -269,4 +271,7 @@ jobs:
           fi
 
           git commit -m "Database backup - ${{ steps.timestamp.outputs.timestamp }}"
-          git push
+
+          # Push with proper authentication
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git push origin HEAD:${{ github.ref_name }}
