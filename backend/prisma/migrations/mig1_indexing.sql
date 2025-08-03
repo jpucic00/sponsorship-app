@@ -12,80 +12,80 @@ SELECT 'Starting index cleanup - removing redundant indexes...' as status;
 
 -- Keep: child_photos_childId_idx, idx_child_photo_profile
 -- Remove redundant photo indexes
-DROP INDEX child_photos_childId_isProfile_idx;
-DROP INDEX child_photos_childId_uploadedAt_idx;
-DROP INDEX child_photos_isProfile_idx;
-DROP INDEX child_photos_uploadedAt_idx;
-DROP INDEX idx_child_photo_child_id;
+DROP INDEX IF EXISTS child_photos_childId_isProfile_idx;
+DROP INDEX IF EXISTS child_photos_childId_uploadedAt_idx;
+DROP INDEX IF EXISTS child_photos_isProfile_idx;
+DROP INDEX IF EXISTS child_photos_uploadedAt_idx;
+DROP INDEX IF EXISTS idx_child_photo_child_id;
 
 -- ==================================================
 -- DROP CHILDREN REDUNDANT INDEXES  
 -- ==================================================
-DROP INDEX children_class_idx;
-DROP INDEX children_createdAt_idx;
-DROP INDEX children_dateOfBirth_idx;
-DROP INDEX children_gender_idx;
-DROP INDEX children_isSponsored_dateEnteredRegister_idx;
-DROP INDEX children_isSponsored_idx;
-DROP INDEX children_lastName_firstName_idx;
-DROP INDEX children_lastProfileUpdate_idx;
-DROP INDEX children_schoolId_class_idx;
-DROP INDEX children_schoolId_isSponsored_idx;
-DROP INDEX idx_child_class_sponsored;
-DROP INDEX idx_child_comprehensive_search;
-DROP INDEX idx_child_created_stats;
-DROP INDEX idx_child_gender_sponsored;
-DROP INDEX idx_child_school_id;
-DROP INDEX idx_child_school_sponsored;
+DROP INDEX IF EXISTS children_class_idx;
+DROP INDEX IF EXISTS children_createdAt_idx;
+DROP INDEX IF EXISTS children_dateOfBirth_idx;
+DROP INDEX IF EXISTS children_gender_idx;
+DROP INDEX IF EXISTS children_isSponsored_dateEnteredRegister_idx;
+DROP INDEX IF EXISTS children_isSponsored_idx;
+DROP INDEX IF EXISTS children_lastName_firstName_idx;
+DROP INDEX IF EXISTS children_lastProfileUpdate_idx;
+DROP INDEX IF EXISTS children_schoolId_class_idx;
+DROP INDEX IF EXISTS children_schoolId_isSponsored_idx;
+DROP INDEX IF EXISTS idx_child_class_sponsored;
+DROP INDEX IF EXISTS idx_child_comprehensive_search;
+DROP INDEX IF EXISTS idx_child_created_stats;
+DROP INDEX IF EXISTS idx_child_gender_sponsored;
+DROP INDEX IF EXISTS idx_child_school_id;
+DROP INDEX IF EXISTS idx_child_school_sponsored;
 
 -- ==================================================
 -- DROP SPONSORSHIPS REDUNDANT INDEXES
 -- ==================================================
-DROP INDEX sponsorships_childId_idx;
-DROP INDEX sponsorships_childId_isActive_idx;
-DROP INDEX sponsorships_endDate_idx;
-DROP INDEX sponsorships_isActive_idx;
-DROP INDEX sponsorships_isActive_startDate_idx;
-DROP INDEX sponsorships_monthlyAmount_idx;
-DROP INDEX sponsorships_paymentMethod_idx;
-DROP INDEX sponsorships_sponsorId_idx;
-DROP INDEX sponsorships_sponsorId_isActive_idx;
-DROP INDEX sponsorships_startDate_idx;
-DROP INDEX idx_sponsorship_created_stats;
-DROP INDEX idx_sponsorship_monthly_amount;
+DROP INDEX IF EXISTS sponsorships_childId_idx;
+DROP INDEX IF EXISTS sponsorships_childId_isActive_idx;
+DROP INDEX IF EXISTS sponsorships_endDate_idx;
+DROP INDEX IF EXISTS sponsorships_isActive_idx;
+DROP INDEX IF EXISTS sponsorships_isActive_startDate_idx;
+DROP INDEX IF EXISTS sponsorships_monthlyAmount_idx;
+DROP INDEX IF EXISTS sponsorships_paymentMethod_idx;
+DROP INDEX IF EXISTS sponsorships_sponsorId_idx;
+DROP INDEX IF EXISTS sponsorships_sponsorId_isActive_idx;
+DROP INDEX IF EXISTS sponsorships_startDate_idx;
+DROP INDEX IF EXISTS idx_sponsorship_created_stats;
+DROP INDEX IF EXISTS idx_sponsorship_monthly_amount;
 
 -- ==================================================
 -- DROP SPONSORS REDUNDANT INDEXES
 -- ==================================================
-DROP INDEX sponsors_createdAt_idx;
-DROP INDEX sponsors_fullName_idx;
-DROP INDEX sponsors_proxyId_fullName_idx;
-DROP INDEX idx_sponsor_created_stats;
-DROP INDEX idx_sponsor_proxy_active;
-DROP INDEX idx_sponsor_proxy_id;
+DROP INDEX IF EXISTS sponsors_createdAt_idx;
+DROP INDEX IF EXISTS sponsors_fullName_idx;
+DROP INDEX IF EXISTS sponsors_proxyId_fullName_idx;
+DROP INDEX IF EXISTS idx_sponsor_created_stats;
+DROP INDEX IF EXISTS idx_sponsor_proxy_active;
+DROP INDEX IF EXISTS idx_sponsor_proxy_id;
 
 -- ==================================================
 -- DROP SCHOOLS REDUNDANT INDEXES
 -- ==================================================
-DROP INDEX schools_isActive_idx;
-DROP INDEX schools_location_idx;
-DROP INDEX schools_name_idx;
-DROP INDEX idx_school_active_only;
+DROP INDEX IF EXISTS schools_isActive_idx;
+DROP INDEX IF EXISTS schools_location_idx;
+DROP INDEX IF EXISTS schools_name_idx;
+DROP INDEX IF EXISTS idx_school_active_only;
 
 -- ==================================================
 -- DROP PROXIES REDUNDANT INDEXES
 -- ==================================================
-DROP INDEX proxies_createdAt_idx;
-DROP INDEX proxies_role_idx;
+DROP INDEX IF EXISTS proxies_createdAt_idx;
+DROP INDEX IF EXISTS proxies_role_idx;
 
 -- ==================================================
 -- DROP VOLUNTEERS REDUNDANT INDEXES
 -- ==================================================
-DROP INDEX volunteers_createdAt_idx;
-DROP INDEX volunteers_isActive_idx;
-DROP INDEX volunteers_lastName_firstName_idx;
-DROP INDEX volunteers_role_idx;
-DROP INDEX volunteers_role_isActive_idx;
+DROP INDEX IF EXISTS volunteers_createdAt_idx;
+DROP INDEX IF EXISTS volunteers_isActive_idx;
+DROP INDEX IF EXISTS volunteers_lastName_firstName_idx;
+DROP INDEX IF EXISTS volunteers_role_idx;
+DROP INDEX IF EXISTS volunteers_role_isActive_idx;
 
 -- ==================================================
 -- PHASE 7: ENSURE ESSENTIAL INDEXES EXIST

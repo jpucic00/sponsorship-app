@@ -101,10 +101,14 @@ model School {
   @@map("schools")
 }
 
+// Updated Sponsor and Proxy models with email and phone fields
+
 model Sponsor {
   id                Int      @id @default(autoincrement())
   fullName          String
-  contact           String   // Freetext: phone, email, address etc
+  contact           String   // Freetext: phone, email, address etc (kept for backward compatibility)
+  email             String?  // NEW: Separate email field
+  phone             String?  // NEW: Separate phone number field
   proxyId           Int?     // Optional middleman/proxy
   
   createdAt         DateTime @default(now())
@@ -119,6 +123,8 @@ model Sponsor {
   @@index([fullName])           // Name searches
   @@index([createdAt])          // Recent sponsors
   @@index([proxyId, fullName])  // Sponsors by proxy
+  @@index([email])              // Email searches
+  @@index([phone])              // Phone searches
   
   @@map("sponsors")
 }
@@ -126,7 +132,9 @@ model Sponsor {
 model Proxy {
   id          Int      @id @default(autoincrement())
   fullName    String   @unique
-  contact     String   // Contact information
+  contact     String   // Contact information (kept for backward compatibility)
+  email       String?  // NEW: Separate email field
+  phone       String?  // NEW: Separate phone number field
   role        String?  // e.g., "Priest", "Community Leader", etc.
   description String?  // Additional info about the proxy
   
@@ -136,9 +144,9 @@ model Proxy {
   // Relations
   sponsors    Sponsor[]
   
-  // Performance Indexes
-  @@index([role])               // Filter by role type
   @@index([createdAt])          // Recent proxies
+  @@index([email])              // Email searches
+  @@index([phone])              // Phone searches
   
   @@map("proxies")
 }

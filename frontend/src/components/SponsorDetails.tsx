@@ -1,517 +1,376 @@
-// File: src/components/SponsorDetails.tsx
-import React, { useState, useEffect } from "react";
+import React from "react";
 import {
-  ArrowLeft,
-  Edit,
-  Heart,
   Users,
+  Mail,
   Phone,
-  MapPin,
-  Calendar,
-  FileText,
-  Clock,
-  DollarSign,
-  Link2,
+  MessageSquare,
   User,
-  GraduationCap,
+  MapPin,
+  FileText,
 } from "lucide-react";
-// Import the date utility functions
-import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
-
-interface Sponsor {
-  id: number;
-  fullName: string;
-  contact: string;
-  createdAt: string;
-  updatedAt: string;
-  proxy?: {
-    id: number;
-    fullName: string;
-    role: string;
-    contact: string;
-    description?: string;
-  };
-  sponsorships: Array<{
-    id: number;
-    startDate: string;
-    monthlyAmount?: number;
-    paymentMethod?: string;
-    notes?: string;
-    isActive: boolean;
-    child: {
-      id: number;
-      firstName: string;
-      lastName: string;
-      dateOfBirth: string;
-      gender: string;
-      class: string;
-      school: {
-        id: number;
-        name: string;
-        location: string;
-      };
-    };
-  }>;
-}
 
 interface SponsorDetailsProps {
-  sponsorId: number;
-  onBack: () => void;
+  sponsor: {
+    id: number;
+    fullName: string;
+    email?: string;
+    phone?: string;
+    contact?: string;
+    createdAt: string;
+    proxy?: {
+      id: number;
+      fullName: string;
+      role: string;
+      email?: string;
+      phone?: string;
+      contact?: string;
+      description?: string;
+    };
+    sponsorships?: Array<{
+      id: number;
+      child: {
+        id: number;
+        firstName: string;
+        lastName: string;
+      };
+      monthlyAmount?: number;
+      startDate: string;
+      isActive: boolean;
+    }>;
+  };
 }
 
-export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
-  sponsorId,
-  onBack,
-}) => {
-  const [sponsor, setSponsor] = useState<Sponsor | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchSponsorDetails(sponsorId);
-  }, [sponsorId]);
-
-  const fetchSponsorDetails = async (id: number) => {
-    try {
-      const response = await fetch(`/api/sponsors/${id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSponsor(data);
-      } else {
-        console.error("Failed to fetch sponsor details");
-      }
-    } catch (error) {
-      console.error("Error fetching sponsor details:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateAge = (dateOfBirth: string) => {
-    const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < birthDate.getDate())
-    ) {
-      age--;
-    }
-
-    return age;
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex justify-center items-center">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
-          <p className="text-gray-600 font-medium">
-            Loading sponsor details...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!sponsor) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex justify-center items-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Sponsor Not Found
-          </h2>
-          <p className="text-gray-600 mb-6">
-            The requested sponsor could not be found.
-          </p>
-          <button
-            onClick={onBack}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Back to Sponsors List
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const activeSponsors = sponsor.sponsorships.filter((s) => s.isActive);
-  const inactiveSponsors = sponsor.sponsorships.filter((s) => !s.isActive);
-
+export const SponsorDetails: React.FC<SponsorDetailsProps> = ({ sponsor }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
-      <div className="max-w-6xl mx-auto px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={onBack}
-            className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 font-medium mb-4 transition-colors"
-          >
-            <ArrowLeft size={20} />
-            <span>Back to Sponsors List</span>
-          </button>
+    <div className="space-y-6">
+      {/* Sponsor Information Card */}
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+            <Users className="text-white" size={20} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {sponsor.fullName}
+            </h2>
+            <p className="text-gray-600">Sponsor Details</p>
+          </div>
+        </div>
 
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                {sponsor.fullName}
-              </h1>
-              <div className="flex items-center space-x-4">
-                <span className="bg-green-100 text-green-800 px-3 py-1 text-sm font-semibold rounded-full">
-                  {activeSponsors.length} Active Sponsorship
-                  {activeSponsors.length !== 1 ? "s" : ""}
-                </span>
-                {sponsor.proxy && (
-                  <span className="bg-purple-100 text-purple-800 px-3 py-1 text-sm font-semibold rounded-full">
-                    Via {sponsor.proxy.role}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Contact Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">
+              Contact Information
+            </h3>
+
+            {/* Email */}
+            {sponsor.email && (
+              <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Mail className="text-blue-600" size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700">
+                    Email Address
+                  </p>
+                  <p className="text-blue-700 font-medium">{sponsor.email}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Phone */}
+            {sponsor.phone && (
+              <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  <Phone className="text-green-600" size={16} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700">
+                    Phone Number
+                  </p>
+                  <p className="text-green-700 font-medium">{sponsor.phone}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Additional Contact Info */}
+            {sponsor.contact && (
+              <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mt-1">
+                  <MessageSquare className="text-gray-600" size={16} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-700">
+                    Additional Information
+                  </p>
+                  <p className="text-gray-700 text-sm mt-1 leading-relaxed">
+                    {sponsor.contact}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Contact Methods Summary */}
+            <div className="bg-gradient-to-r from-blue-50 to-green-50 p-4 rounded-xl border border-blue-200">
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                Available Contact Methods
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {sponsor.email && (
+                  <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                    <Mail size={12} className="mr-1" />
+                    Email
+                  </span>
+                )}
+                {sponsor.phone && (
+                  <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                    <Phone size={12} className="mr-1" />
+                    Phone
+                  </span>
+                )}
+                {sponsor.contact && (
+                  <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                    <MessageSquare size={12} className="mr-1" />
+                    Additional
                   </span>
                 )}
               </div>
             </div>
+          </div>
 
-            <button
-              onClick={() =>
-                (window.location.href = `/edit-sponsor/${sponsor.id}`)
-              }
-              className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
-            >
-              <Edit size={20} />
-              <span>Edit Details</span>
-            </button>
+          {/* Registration Info */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">
+              Registration Information
+            </h3>
+
+            <div className="p-4 bg-orange-50 rounded-xl border border-orange-200">
+              <div className="flex items-center space-x-2 mb-2">
+                <User className="text-orange-600" size={16} />
+                <span className="text-sm font-semibold text-orange-700">
+                  Registration Date
+                </span>
+              </div>
+              <p className="text-gray-700 font-medium">
+                {new Date(sponsor.createdAt).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </div>
+
+            {/* Active Sponsorships Count */}
+            {sponsor.sponsorships && (
+              <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Users className="text-purple-600" size={16} />
+                  <span className="text-sm font-semibold text-purple-700">
+                    Active Sponsorships
+                  </span>
+                </div>
+                <p className="text-gray-700 font-medium">
+                  {sponsor.sponsorships.filter((s) => s.isActive).length} active
+                  sponsorship(s)
+                </p>
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Active Sponsorships */}
-            {activeSponsors.length > 0 && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Heart className="text-red-500" size={28} />
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Active Sponsorships ({activeSponsors.length})
-                  </h2>
+      {/* Proxy Information Card */}
+      {sponsor.proxy && (
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
+              <User className="text-white" size={20} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {sponsor.proxy.fullName}
+              </h2>
+              <p className="text-purple-600 font-medium">
+                {sponsor.proxy.role}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Proxy Contact Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Proxy Contact Information
+              </h3>
+
+              {/* Proxy Email */}
+              {sponsor.proxy.email && (
+                <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Mail className="text-blue-600" size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">
+                      Email Address
+                    </p>
+                    <p className="text-blue-700 font-medium">
+                      {sponsor.proxy.email}
+                    </p>
+                  </div>
                 </div>
+              )}
 
-                <div className="space-y-6">
-                  {activeSponsors.map((sponsorship) => (
-                    <div
-                      key={sponsorship.id}
-                      className="bg-green-50 rounded-2xl p-6 border border-green-200"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-3">
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold">
-                              {sponsorship.child.firstName[0]}
-                              {sponsorship.child.lastName[0]}
-                            </div>
-                            <div>
-                              <h3 className="text-xl font-bold text-gray-900">
-                                {sponsorship.child.firstName}{" "}
-                                {sponsorship.child.lastName}
-                              </h3>
-                              <p className="text-gray-600">
-                                {calculateAge(sponsorship.child.dateOfBirth)}{" "}
-                                years old • {sponsorship.child.gender} •{" "}
-                                {sponsorship.child.class}
-                              </p>
-                            </div>
-                          </div>
+              {/* Proxy Phone */}
+              {sponsor.proxy.phone && (
+                <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <Phone className="text-green-600" size={16} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">
+                      Phone Number
+                    </p>
+                    <p className="text-green-700 font-medium">
+                      {sponsor.proxy.phone}
+                    </p>
+                  </div>
+                </div>
+              )}
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="bg-white p-4 rounded-xl border border-green-200">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <Calendar
-                                  className="text-green-600"
-                                  size={18}
-                                />
-                                <span className="font-semibold text-green-700">
-                                  Sponsorship Start
-                                </span>
-                              </div>
-                              {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
-                              <div className="space-y-1">
-                                <p className="text-gray-900 font-medium">
-                                  {formatDateTime(sponsorship.startDate)}
-                                </p>
-                                <p className="text-gray-600 text-sm">
-                                  {
-                                    formatDateTimeWithRelative(
-                                      sponsorship.startDate
-                                    ).relative
-                                  }
-                                </p>
-                              </div>
-                            </div>
+              {/* Proxy Additional Contact */}
+              {sponsor.proxy.contact && (
+                <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center mt-1">
+                    <MessageSquare className="text-gray-600" size={16} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-700">
+                      Additional Information
+                    </p>
+                    <p className="text-gray-700 text-sm mt-1 leading-relaxed">
+                      {sponsor.proxy.contact}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
 
-                            <div className="bg-white p-4 rounded-xl border border-green-200">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <GraduationCap
-                                  className="text-green-600"
-                                  size={18}
-                                />
-                                <span className="font-semibold text-green-700">
-                                  School
-                                </span>
-                              </div>
-                              <p className="text-gray-900 font-medium">
-                                {sponsorship.child.school.name}
-                              </p>
-                              <div className="flex items-center space-x-1 mt-1">
-                                <MapPin className="text-gray-500" size={14} />
-                                <p className="text-gray-600 text-sm">
-                                  {sponsorship.child.school.location}
-                                </p>
-                              </div>
-                            </div>
+            {/* Proxy Role and Description */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Role & Description
+              </h3>
 
-                            {sponsorship.monthlyAmount && (
-                              <div className="bg-white p-4 rounded-xl border border-green-200">
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <DollarSign
-                                    className="text-green-600"
-                                    size={18}
-                                  />
-                                  <span className="font-semibold text-green-700">
-                                    Monthly Amount
-                                  </span>
-                                </div>
-                                <p className="text-gray-900 font-bold text-lg">
-                                  ${sponsorship.monthlyAmount}
-                                </p>
-                                {sponsorship.paymentMethod && (
-                                  <p className="text-gray-600 text-sm">
-                                    via {sponsorship.paymentMethod}
-                                  </p>
-                                )}
-                              </div>
-                            )}
+              <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
+                <div className="flex items-center space-x-2 mb-2">
+                  <MapPin className="text-purple-600" size={16} />
+                  <span className="text-sm font-semibold text-purple-700">
+                    Role
+                  </span>
+                </div>
+                <p className="text-gray-700 font-medium">
+                  {sponsor.proxy.role}
+                </p>
+              </div>
 
-                            {sponsorship.notes && (
-                              <div className="bg-white p-4 rounded-xl border border-green-200">
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <FileText
-                                    className="text-green-600"
-                                    size={18}
-                                  />
-                                  <span className="font-semibold text-green-700">
-                                    Notes
-                                  </span>
-                                </div>
-                                <p className="text-gray-800 text-sm">
-                                  {sponsorship.notes}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              {sponsor.proxy.description && (
+                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200">
+                  <div className="flex items-start space-x-2 mb-2">
+                    <FileText className="text-indigo-600 mt-1" size={16} />
+                    <span className="text-sm font-semibold text-indigo-700">
+                      Description
+                    </span>
+                  </div>
+                  <p className="text-gray-700 text-sm leading-relaxed">
+                    {sponsor.proxy.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Proxy Contact Methods Summary */}
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-4 rounded-xl border border-purple-200">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                  Proxy Contact Methods
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {sponsor.proxy.email && (
+                    <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                      <Mail size={12} className="mr-1" />
+                      Email
+                    </span>
+                  )}
+                  {sponsor.proxy.phone && (
+                    <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                      <Phone size={12} className="mr-1" />
+                      Phone
+                    </span>
+                  )}
+                  {sponsor.proxy.contact && (
+                    <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                      <MessageSquare size={12} className="mr-1" />
+                      Additional
+                    </span>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
+          </div>
 
-            {/* Previous Sponsorships */}
-            {inactiveSponsors.length > 0 && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Users className="text-gray-600" size={28} />
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Previous Sponsorships ({inactiveSponsors.length})
-                  </h2>
-                </div>
+          {/* Communication Flow Info */}
+          <div className="mt-6 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
+            <h4 className="text-sm font-semibold text-yellow-800 mb-2">
+              Communication Flow
+            </h4>
+            <p className="text-sm text-yellow-700">
+              This proxy serves as an intermediary for communication between the
+              sponsor and the local community. Contact the proxy for
+              coordination of sponsorship activities and local updates.
+            </p>
+          </div>
+        </div>
+      )}
 
-                <div className="space-y-4">
-                  {inactiveSponsors.map((sponsorship) => (
-                    <div
-                      key={sponsorship.id}
-                      className="bg-gray-50 rounded-xl p-4 border border-gray-200"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-bold text-gray-900">
-                            {sponsorship.child.firstName}{" "}
-                            {sponsorship.child.lastName}
-                          </h4>
-                          {/* USING formatDateTime utility function */}
-                          <p className="text-sm text-gray-600">
-                            {formatDateTime(sponsorship.startDate)} - Ended
-                          </p>
-                        </div>
-                        {sponsorship.monthlyAmount && (
-                          <p className="text-gray-700 font-medium">
-                            ${sponsorship.monthlyAmount}/month
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Proxy Information */}
-            {sponsor.proxy && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-                <div className="flex items-center space-x-3 mb-6">
-                  <Link2 className="text-purple-600" size={28} />
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Proxy Representative
-                  </h2>
-                </div>
-
-                <div className="bg-purple-50 rounded-2xl p-6 border border-purple-200">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Active Sponsorships List */}
+      {sponsor.sponsorships && sponsor.sponsorships.length > 0 && (
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">
+            Active Sponsorships
+          </h2>
+          <div className="space-y-3">
+            {sponsor.sponsorships
+              .filter((sponsorship) => sponsorship.isActive)
+              .map((sponsorship) => (
+                <div
+                  key={sponsorship.id}
+                  className="p-4 bg-green-50 rounded-xl border border-green-200"
+                >
+                  <div className="flex items-center justify-between">
                     <div>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <User className="text-purple-600" size={18} />
-                        <span className="font-semibold text-purple-700">
-                          Representative
-                        </span>
-                      </div>
-                      <p className="text-gray-900 font-bold">
-                        {sponsor.proxy.fullName}
-                      </p>
-                      <p className="text-purple-600 text-sm mt-1">
-                        {sponsor.proxy.role}
+                      <h3 className="font-semibold text-gray-900">
+                        {sponsorship.child.firstName}{" "}
+                        {sponsorship.child.lastName}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Started:{" "}
+                        {new Date(sponsorship.startDate).toLocaleDateString()}
                       </p>
                     </div>
-
-                    <div>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Phone className="text-purple-600" size={18} />
-                        <span className="font-semibold text-purple-700">
-                          Contact
-                        </span>
-                      </div>
-                      <p className="text-gray-900 text-sm break-words">
-                        {sponsor.proxy.contact}
-                      </p>
-                    </div>
-
-                    {sponsor.proxy.description && (
-                      <div className="md:col-span-2">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <FileText className="text-purple-600" size={18} />
-                          <span className="font-semibold text-purple-700">
-                            Description
-                          </span>
-                        </div>
-                        <p className="text-gray-800 text-sm">
-                          {sponsor.proxy.description}
+                    {sponsorship.monthlyAmount && (
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-green-700">
+                          ${sponsorship.monthlyAmount}/month
                         </p>
                       </div>
                     )}
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-8">
-            {/* Quick Stats */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
-                Quick Overview
-              </h3>
-
-              <div className="space-y-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600 mb-1">
-                    {activeSponsors.length}
-                  </div>
-                  <p className="text-gray-600 text-sm">Active Sponsorships</p>
-                </div>
-
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600 mb-1">
-                    {sponsor.sponsorships.length}
-                  </div>
-                  <p className="text-gray-600 text-sm">Total Sponsorships</p>
-                </div>
-
-                <div className="text-center">
-                  {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
-                  <div className="space-y-1">
-                    <p className="text-lg font-bold text-gray-900">
-                      {formatDateTime(sponsor.createdAt)}
-                    </p>
-                    <p className="text-gray-600 text-sm">
-                      {formatDateTimeWithRelative(sponsor.createdAt).relative}
-                    </p>
-                  </div>
-                  <p className="text-gray-600 text-sm">Member Since</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Contact Information */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-              <div className="flex items-center space-x-3 mb-4">
-                <Phone className="text-blue-600" size={20} />
-                <h3 className="text-lg font-bold text-gray-900">
-                  Contact Information
-                </h3>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <span className="font-medium text-gray-700">Contact:</span>
-                  <p className="text-gray-900 break-words">{sponsor.contact}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Additional Info */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-              <div className="flex items-center space-x-3 mb-4">
-                <Clock className="text-gray-600" size={20} />
-                <h3 className="text-lg font-bold text-gray-900">
-                  Account Information
-                </h3>
-              </div>
-
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="font-medium text-gray-700">Registered:</span>
-                  <div className="mt-1">
-                    {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
-                    <p className="text-gray-900 font-medium">
-                      {formatDateTime(sponsor.createdAt)}
-                    </p>
-                    <p className="text-gray-600 text-xs">
-                      {formatDateTimeWithRelative(sponsor.createdAt).relative}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">
-                    Last Updated:
-                  </span>
-                  <div className="mt-1">
-                    {/* USING formatDateTime and formatDateTimeWithRelative utility functions */}
-                    <p className="text-gray-900 font-medium">
-                      {formatDateTime(sponsor.updatedAt)}
-                    </p>
-                    <p className="text-gray-600 text-xs">
-                      {formatDateTimeWithRelative(sponsor.updatedAt).relative}
-                    </p>
-                  </div>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Sponsor ID:</span>
-                  <p className="text-gray-900 font-mono">#{sponsor.id}</p>
-                </div>
-              </div>
-            </div>
+              ))}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
