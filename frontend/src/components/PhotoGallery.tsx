@@ -1,9 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useImperativeHandle,
-  forwardRef,
-} from "react";
+import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import {
   Camera,
   Plus,
@@ -12,7 +7,6 @@ import {
   Eye,
   Edit,
   Check,
-  Upload,
   Clock,
   Star,
   AlertTriangle,

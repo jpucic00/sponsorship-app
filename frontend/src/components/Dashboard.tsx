@@ -8,7 +8,6 @@ import {
   Plus,
   FileUp,
   UserPlus,
-  PieChart,
   BarChart3,
   Calendar,
   MapPin,
@@ -16,7 +15,6 @@ import {
   Target,
   Award,
   Activity,
-  BookOpen,
   Globe,
   UserCheck,
 } from "lucide-react";
