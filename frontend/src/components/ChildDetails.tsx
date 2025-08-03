@@ -1,5 +1,5 @@
 // File: src/components/ChildDetails.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Edit,
@@ -294,6 +294,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
   // Photo upload modal states
   const [showPhotoUpload, setShowPhotoUpload] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const photoGalleryRef = useRef<{ refreshPhotos: () => void }>(null);
 
   useEffect(() => {
     fetchChildDetails(childId);
@@ -364,6 +365,9 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
         await fetchChildDetails(childId);
         setShowPhotoUpload(false);
         handleProfilePhotoChange();
+
+        // Add this line to refresh the gallery
+        photoGalleryRef.current?.refreshPhotos();
       } else {
         const error = await response.json();
         alert(error.error || "Failed to upload photo");
@@ -1034,6 +1038,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
 
             {/* Photo Gallery */}
             <PhotoGallery
+              ref={photoGalleryRef}
               childId={child.id}
               childName={`${child.firstName} ${child.lastName}`}
               onProfilePhotoChange={handleProfilePhotoChange}
