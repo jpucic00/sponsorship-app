@@ -10,6 +10,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import { LogoIcon } from "./LogoIcon";
 
 export const Navigation: React.FC = () => {
   const location = useLocation();
@@ -34,7 +35,7 @@ export const Navigation: React.FC = () => {
             <div className="flex-shrink-0 flex items-center py-4">
               <Link to="/" className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                  <Heart className="text-white" size={24} />
+                  <LogoIcon className="text-white" size={24} />
                 </div>
                 <div>
                   <div className="text-xl font-bold text-white">
