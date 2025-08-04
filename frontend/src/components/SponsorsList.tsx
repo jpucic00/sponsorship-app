@@ -471,12 +471,6 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
                               <Edit size={14} />
                               <span>Edit</span>
                             </button>
-                            {sponsor.sponsorships.length === 0 && (
-                              <button className="flex items-center space-x-1 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
-                                <Link2 size={14} />
-                                <span>Match</span>
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>
@@ -575,11 +569,6 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
                       <button className="flex-1 px-3 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200">
                         Edit
                       </button>
-                      {sponsor.sponsorships.length === 0 && (
-                        <button className="flex-1 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200">
-                          Match
-                        </button>
-                      )}
                     </div>
                   </div>
                 ))}
