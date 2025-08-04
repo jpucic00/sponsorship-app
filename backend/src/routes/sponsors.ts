@@ -1,9 +1,6 @@
-// Updated sponsors API routes with email and phone field support
-import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const router = Router();
-const prisma = new PrismaClient();
+import express from 'express';
+import { prisma } from '../lib/db'; 
+const router = express.Router();
 
 // GET all sponsors
 router.get('/', async (req, res) => {
@@ -167,11 +164,11 @@ router.post('/', async (req, res) => {
     });
 
     res.status(201).json(sponsor);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating sponsor:', error);
     
     // Handle unique constraint violations
-    if (error.code === 'P2002') {
+    if (error instanceof Error && 'code' in error && (error as any).code === 'P2002') {
       return res.status(400).json({ 
         error: 'A sponsor with this information already exists' 
       });
@@ -281,7 +278,7 @@ router.put('/:id', async (req, res) => {
     });
 
     res.json(sponsor);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error updating sponsor:', error);
     res.status(500).json({ error: 'Failed to update sponsor' });
   }
@@ -318,7 +315,7 @@ router.delete('/:id', async (req, res) => {
     });
 
     res.json({ message: 'Sponsor deleted successfully' });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error deleting sponsor:', error);
     res.status(500).json({ error: 'Failed to delete sponsor' });
   }
@@ -333,13 +330,13 @@ router.get('/search/:query', async (req, res) => {
     const sponsors = await prisma.sponsor.findMany({
       where: {
         OR: [
-          { fullName: { contains: searchTerm, mode: 'insensitive' } },
-          { email: { contains: searchTerm, mode: 'insensitive' } },
-          { phone: { contains: searchTerm, mode: 'insensitive' } },
-          { contact: { contains: searchTerm, mode: 'insensitive' } },
+          { fullName: { contains: searchTerm } },
+          { email: { contains: searchTerm } },
+          { phone: { contains: searchTerm } },
+          { contact: { contains: searchTerm } },
           {
             proxy: {
-              fullName: { contains: searchTerm, mode: 'insensitive' }
+              fullName: { contains: searchTerm }
             }
           }
         ]
@@ -375,7 +372,7 @@ router.get('/search/:query', async (req, res) => {
     });
 
     res.json(sponsors);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error searching sponsors:', error);
     res.status(500).json({ error: 'Failed to search sponsors' });
   }

@@ -1,9 +1,7 @@
-// Updated proxies API routes with email and phone field support
-import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const router = Router();
-const prisma = new PrismaClient();
+// Fixed proxies API routes with proper TypeScript handling
+import express from 'express';
+import { prisma } from '../lib/db'; 
+const router = express.Router();
 
 // GET all proxies
 router.get('/', async (req, res) => {
@@ -27,7 +25,7 @@ router.get('/', async (req, res) => {
     });
 
     res.json(proxies);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching proxies:', error);
     res.status(500).json({ error: 'Failed to fetch proxies' });
   }
@@ -72,7 +70,7 @@ router.get('/:id', async (req, res) => {
     }
 
     res.json(proxy);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error fetching proxy:', error);
     res.status(500).json({ error: 'Failed to fetch proxy' });
   }
@@ -143,11 +141,11 @@ router.post('/', async (req, res) => {
     });
 
     res.status(201).json(proxy);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating proxy:', error);
     
     // Handle unique constraint violations
-    if (error instanceof Error && 'code' in error && error.code === 'P2002') {
+    if (error instanceof Error && 'code' in error && (error as any).code === 'P2002') {
       return res.status(400).json({ 
         error: 'A proxy with this name already exists' 
       });
@@ -257,11 +255,11 @@ router.put('/:id', async (req, res) => {
     });
 
     res.json(proxy);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error updating proxy:', error);
     
     // Handle unique constraint violations
-    if (error instanceof Error && 'code' in error && error.code === 'P2002') {
+    if (error instanceof Error && 'code' in error && (error as any).code === 'P2002') {
       return res.status(400).json({ 
         error: 'A proxy with this name already exists' 
       });
@@ -300,7 +298,7 @@ router.delete('/:id', async (req, res) => {
     });
 
     res.json({ message: 'Proxy deleted successfully' });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error deleting proxy:', error);
     res.status(500).json({ error: 'Failed to delete proxy' });
   }
@@ -341,7 +339,7 @@ router.get('/search/:query', async (req, res) => {
     });
 
     res.json(proxies);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error searching proxies:', error);
     res.status(500).json({ error: 'Failed to search proxies' });
   }
