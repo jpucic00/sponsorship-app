@@ -56,6 +56,8 @@ export const ChildForm: React.FC<ChildFormProps> = ({
   const [selectedProxy, setSelectedProxy] = useState<Proxy | null>(null);
   const [proxySearchTerm, setProxySearchTerm] = useState("");
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -259,6 +261,9 @@ export const ChildForm: React.FC<ChildFormProps> = ({
 
   const handleSubmit = async () => {
     let finalData = { ...formData };
+    if (isSubmitting) return; // Prevent double submission
+
+    setIsSubmitting(true);
 
     // Convert selected sponsors to IDs
     if (selectedSponsors.length > 0) {
@@ -292,6 +297,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
           }
         } catch (error) {
           console.error("Error creating proxy:", error);
+          setIsSubmitting(false);
           alert("Failed to create proxy. Please try again.");
           return;
         }
@@ -314,6 +320,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
       resetForm();
       fetchData();
     } catch (error) {
+      setIsSubmitting(false);
       console.error("Error submitting form:", error);
       throw error;
     }
@@ -561,11 +568,20 @@ export const ChildForm: React.FC<ChildFormProps> = ({
                   <button
                     type="button"
                     onClick={handleSubmit}
-                    disabled={!isStepValid()}
+                    disabled={!isStepValid() || isSubmitting}
                     className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg"
                   >
-                    <Check size={20} />
-                    <span>Register Child</span>
+                    {isSubmitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                        <span>Registering...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check size={20} />
+                        <span>Register Child</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>

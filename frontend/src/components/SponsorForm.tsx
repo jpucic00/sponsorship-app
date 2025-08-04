@@ -34,6 +34,8 @@ export const SponsorForm: React.FC<SponsorFormProps> = ({
   const [showNewProxyForm, setShowNewProxyForm] = useState(false);
   const [selectedProxy, setSelectedProxy] = useState<Proxy | null>(null);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -60,8 +62,33 @@ export const SponsorForm: React.FC<SponsorFormProps> = ({
       .catch(console.error);
   }, []);
 
+  const resetForm = () => {
+    setFormData({
+      fullName: "",
+      email: "",
+      phone: "",
+      contact: "",
+      proxyId: "",
+    });
+    setNewProxyData({
+      fullName: "",
+      email: "",
+      phone: "",
+      contact: "",
+      role: "",
+      description: "",
+    });
+    setShowNewProxyForm(false);
+    setSelectedProxy(null);
+    setProxySearchTerm("");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isSubmitting) return; // Prevent double submission
+
+    setIsSubmitting(true);
 
     let finalData = { ...formData };
 
@@ -86,12 +113,22 @@ export const SponsorForm: React.FC<SponsorFormProps> = ({
         }
       } catch (error) {
         console.error("Error creating proxy:", error);
+        setIsSubmitting(false);
         alert("Failed to create proxy. Please try again.");
         return;
       }
     }
-
-    onSubmit(finalData);
+    try {
+      console.log("Submitting final data:", finalData);
+      // Submit child data - the backend will handle creating the photo in the gallery
+      await onSubmit(finalData);
+      resetForm();
+      setIsSubmitting(false);
+    } catch (error) {
+      setIsSubmitting(false);
+      console.error("Error submitting form:", error);
+      throw error;
+    }
   };
 
   const handleChange = (
@@ -668,24 +705,41 @@ export const SponsorForm: React.FC<SponsorFormProps> = ({
             <div className="flex flex-col items-center pt-6">
               <button
                 type="submit"
-                disabled={!isFormValid()}
+                disabled={!isFormValid() || isSubmitting}
                 className={`px-12 py-4 rounded-2xl font-bold text-lg transition-all duration-300 transform ${
-                  isFormValid()
+                  isFormValid() && !isSubmitting
                     ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 hover:scale-105 shadow-xl hover:shadow-2xl"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}
               >
                 <span className="flex items-center space-x-2">
-                  <UserPlus size={20} />
-                  <span>
-                    {initialData ? "Update Sponsor" : "Register Sponsor"}
-                  </span>
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                      <span>
+                        {initialData ? "Updating..." : "Registering..."}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={20} />
+                      <span>
+                        {initialData ? "Update Sponsor" : "Register Sponsor"}
+                      </span>
+                    </>
+                  )}
                 </span>
               </button>
 
-              {!isFormValid() && (
+              {!isFormValid() && !isSubmitting && (
                 <p className="text-center text-sm text-gray-500 mt-3">
                   Please fill in all required fields to continue
+                </p>
+              )}
+
+              {isSubmitting && (
+                <p className="text-center text-sm text-blue-600 mt-3">
+                  Please wait while we process your registration...
                 </p>
               )}
             </div>

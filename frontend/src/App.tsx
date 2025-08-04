@@ -53,7 +53,7 @@ function App() {
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
-      throw error;
+      throw error; // Re-throw so form can handle it
     }
   };
 
@@ -72,7 +72,8 @@ function App() {
       if (response.ok) {
         const result = await response.json();
         console.log("Sponsor registration result:", result);
-        showNotification("Sponsor registered successfully! 🤝");
+        showNotification("Sponsor registered successfully! 🎉");
+        return Promise.resolve();
       } else {
         const errorData = await response
           .json()
@@ -87,6 +88,7 @@ function App() {
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
+      throw error; // Re-throw so form can handle it
     }
   };
 
