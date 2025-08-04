@@ -210,12 +210,6 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Sponsor full name is required' });
     }
 
-    if (!email?.trim() && !phone?.trim()) {
-      return res.status(400).json({ 
-        error: 'At least one contact method (email or phone) is required' 
-      });
-    }
-
     // Validate email format if provided
     if (email?.trim()) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -300,16 +294,6 @@ router.put('/:id', async (req, res) => {
     // Validation
     if (fullName !== undefined && !fullName?.trim()) {
       return res.status(400).json({ error: 'Sponsor full name cannot be empty' });
-    }
-
-    // Check that at least one contact method will remain
-    const finalEmail = email !== undefined ? email?.trim() : existingSponsor.email;
-    const finalPhone = phone !== undefined ? phone?.trim() : existingSponsor.phone;
-    
-    if (!finalEmail && !finalPhone) {
-      return res.status(400).json({ 
-        error: 'At least one contact method (email or phone) must be provided' 
-      });
     }
 
     // Validate email format if provided

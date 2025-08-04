@@ -473,8 +473,9 @@ export const ProxySelector: React.FC<ProxySelectorProps> = ({
                 {/* Contact Information Note */}
                 <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
                   <p className="text-sm text-blue-700">
-                    <strong>Note:</strong> At least one contact method (email or
-                    phone) is required for the proxy.
+                    <strong>Note:</strong> Email and phone are optional. You can
+                    provide contact information in the additional contact field
+                    below.
                   </p>
                 </div>
 

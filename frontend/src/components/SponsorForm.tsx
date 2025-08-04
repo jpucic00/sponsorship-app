@@ -66,11 +66,7 @@ export const SponsorForm: React.FC<SponsorFormProps> = ({
     let finalData = { ...formData };
 
     // If creating a new proxy, first create the proxy then use its ID
-    if (
-      showNewProxyForm &&
-      newProxyData.fullName &&
-      (newProxyData.email || newProxyData.phone)
-    ) {
+    if (showNewProxyForm && newProxyData.fullName) {
       try {
         const proxyResponse = await fetch("/api/proxies", {
           method: "POST",
@@ -148,15 +144,12 @@ export const SponsorForm: React.FC<SponsorFormProps> = ({
   };
 
   const isFormValid = () => {
-    const basicFormValid =
-      formData.fullName.trim() &&
-      (formData.email.trim() || formData.phone.trim()); // At least email or phone required
+    const basicFormValid = formData.fullName.trim();
 
     if (showNewProxyForm) {
       return (
         basicFormValid &&
         newProxyData.fullName.trim() &&
-        (newProxyData.email.trim() || newProxyData.phone.trim()) &&
         newProxyData.role.trim()
       );
     }
@@ -245,11 +238,11 @@ export const SponsorForm: React.FC<SponsorFormProps> = ({
             </div>
 
             {/* Contact Information Note */}
-            <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+            <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
               <p className="text-sm text-blue-700">
-                <strong>Note:</strong> At least one contact method (email or
-                phone) is required. You can provide both for better
-                communication options.
+                <strong>Note:</strong> Email and phone are optional. You can
+                provide contact information in the additional contact field
+                below.
               </p>
             </div>
 
@@ -588,8 +581,9 @@ export const SponsorForm: React.FC<SponsorFormProps> = ({
 
                       <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
                         <p className="text-sm text-blue-700">
-                          <strong>Note:</strong> At least one contact method
-                          (email or phone) is required for the proxy.
+                          <strong>Note:</strong> Email and phone are optional.
+                          You can provide contact information in the additional
+                          contact field below.
                         </p>
                       </div>
                     </div>

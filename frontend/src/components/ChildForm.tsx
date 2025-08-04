@@ -269,12 +269,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
 
     if (showNewSponsorForm && newSponsorData.fullName) {
       // FIXED: Updated proxy creation validation to include email/phone
-      if (
-        showNewProxyForm &&
-        newProxyData.fullName &&
-        (newProxyData.email || newProxyData.phone) &&
-        newProxyData.role
-      ) {
+      if (showNewProxyForm && newProxyData.fullName && newProxyData.role) {
         try {
           console.log("Creating proxy:", newProxyData);
           const proxyResponse = await fetch("/api/proxies", {
@@ -354,11 +349,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
           (newSponsorData.email || newSponsorData.phone) // FIXED: Require email OR phone
         ) {
           if (showNewProxyForm) {
-            return (
-              newProxyData.fullName &&
-              (newProxyData.email || newProxyData.phone) && // FIXED: Require email OR phone
-              newProxyData.role
-            );
+            return newProxyData.fullName && newProxyData.role;
           }
           return true;
         }

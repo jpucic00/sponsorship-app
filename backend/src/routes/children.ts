@@ -832,10 +832,6 @@ router.post('/', async (req, res) => {
       
       // Create new sponsor if provided
       if (newSponsor && newSponsor.fullName) {
-        // Validate that at least email or phone is provided
-        if (!newSponsor.email?.trim() && !newSponsor.phone?.trim()) {
-          throw new Error('At least one contact method (email or phone) is required for sponsor');
-        }
 
         // Validate email format if provided
         if (newSponsor.email?.trim()) {
