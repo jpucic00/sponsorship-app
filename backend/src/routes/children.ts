@@ -829,16 +829,72 @@ router.post('/', async (req, res) => {
           throw new Error('One or more sponsor IDs are invalid');
         }
       }
-
+      
       // Create new sponsor if provided
       if (newSponsor && newSponsor.fullName) {
+        // Validate that at least email or phone is provided
+        if (!newSponsor.email?.trim() && !newSponsor.phone?.trim()) {
+          throw new Error('At least one contact method (email or phone) is required for sponsor');
+        }
+
+        // Validate email format if provided
+        if (newSponsor.email?.trim()) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(newSponsor.email.trim())) {
+            throw new Error('Invalid email format for sponsor');
+          }
+        }
+
+        // Validate proxy exists if provided
+        if (newSponsor.proxyId) {
+          const proxy = await tx.proxy.findUnique({
+            where: { id: parseInt(newSponsor.proxyId) }
+          });
+          if (!proxy) {
+            throw new Error('Invalid proxy ID for sponsor');
+          }
+        }
+
+        // FIXED: Include email and phone fields in sponsor creation
+        const sponsorData: any = {
+          fullName: newSponsor.fullName.trim(),
+          contact: newSponsor.contact?.trim() || '', // Keep for backward compatibility
+        };
+
+        // Add email if provided
+        if (newSponsor.email?.trim()) {
+          sponsorData.email = newSponsor.email.trim().toLowerCase();
+        }
+
+        // Add phone if provided
+        if (newSponsor.phone?.trim()) {
+          sponsorData.phone = newSponsor.phone.trim();
+        }
+
+        // Add proxy if provided
+        if (newSponsor.proxyId) {
+          sponsorData.proxyId = parseInt(newSponsor.proxyId);
+        }
+
+        console.log('Creating sponsor with data:', sponsorData);
+
         const createdSponsor = await tx.sponsor.create({
-          data: {
-            fullName: newSponsor.fullName,
-            contact: newSponsor.contact,
-            proxyId: newSponsor.proxyId ? parseInt(newSponsor.proxyId) : null
+          data: sponsorData,
+          include: {
+            proxy: {
+              select: {
+                id: true,
+                fullName: true,
+                role: true,
+                contact: true,
+                email: true,
+                phone: true
+              }
+            }
           }
         });
+
+        console.log('Sponsor created successfully:', createdSponsor);
         finalSponsorIds.push(createdSponsor.id);
       }
 

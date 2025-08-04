@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { ChevronRight, ChevronLeft, Check, FileText } from "lucide-react";
-import { FormProgressSteps } from "./FormProgressSteps";
+import { ChevronLeft, ChevronRight, Check, FileText } from "lucide-react";
 import { BasicInfoStep } from "./BasicInfoStep";
 import { FamilyInfoStep } from "./FamilyInfoStep";
 import { SponsorSelectionStep } from "./SponsorSelectionStep";
+import { FormProgressSteps } from "./FormProgressSteps";
 import { FormSummaryCard } from "./FormSummaryCard";
 import { ImageUpload } from "./ImageUpload";
 
@@ -17,6 +17,8 @@ interface Sponsor {
   id: number;
   fullName: string;
   contact: string;
+  email?: string;
+  phone?: string;
   proxy?: {
     fullName: string;
     role: string;
@@ -28,6 +30,8 @@ interface Proxy {
   fullName: string;
   role: string;
   contact: string;
+  email?: string;
+  phone?: string;
 }
 
 interface ChildFormProps {
@@ -75,14 +79,20 @@ export const ChildForm: React.FC<ChildFormProps> = ({
     ...initialData,
   });
 
+  // FIXED: Added email and phone fields
   const [newSponsorData, setNewSponsorData] = useState({
     fullName: "",
+    email: "",
+    phone: "",
     contact: "",
     proxyId: "",
   });
 
+  // FIXED: Added email and phone fields
   const [newProxyData, setNewProxyData] = useState({
     fullName: "",
+    email: "",
+    phone: "",
     contact: "",
     role: "",
     description: "",
@@ -108,6 +118,11 @@ export const ChildForm: React.FC<ChildFormProps> = ({
       // Handle both paginated and non-paginated responses
       setSponsors(sponsorsData.data || sponsorsData || []);
       setProxies(proxiesData);
+
+      console.log("Fetched data:", {
+        sponsors: sponsorsData.data || sponsorsData || [],
+        proxies: proxiesData,
+      });
     } catch (error) {
       console.error("Error fetching data:", error);
     }
@@ -214,14 +229,20 @@ export const ChildForm: React.FC<ChildFormProps> = ({
       photoSize: 0,
     });
 
+    // FIXED: Include email and phone fields in reset
     setNewSponsorData({
       fullName: "",
+      email: "",
+      phone: "",
       contact: "",
       proxyId: "",
     });
 
+    // FIXED: Include email and phone fields in reset
     setNewProxyData({
       fullName: "",
+      email: "",
+      phone: "",
       contact: "",
       role: "",
       description: "",
@@ -247,14 +268,15 @@ export const ChildForm: React.FC<ChildFormProps> = ({
     }
 
     if (showNewSponsorForm && newSponsorData.fullName) {
-      // Create new proxy first if needed
+      // FIXED: Updated proxy creation validation to include email/phone
       if (
         showNewProxyForm &&
         newProxyData.fullName &&
-        newProxyData.contact &&
+        (newProxyData.email || newProxyData.phone) &&
         newProxyData.role
       ) {
         try {
+          console.log("Creating proxy:", newProxyData);
           const proxyResponse = await fetch("/api/proxies", {
             method: "POST",
             headers: {
@@ -267,8 +289,11 @@ export const ChildForm: React.FC<ChildFormProps> = ({
             const newProxy = await proxyResponse.json();
             setProxies((prev) => [...prev, newProxy]);
             newSponsorData.proxyId = newProxy.id.toString();
+            console.log("Proxy created successfully:", newProxy);
           } else {
-            throw new Error("Failed to create proxy");
+            const error = await proxyResponse.json();
+            console.error("Proxy creation error:", error);
+            throw new Error(error.error || "Failed to create proxy");
           }
         } catch (error) {
           console.error("Error creating proxy:", error);
@@ -277,15 +302,18 @@ export const ChildForm: React.FC<ChildFormProps> = ({
         }
       }
 
-      // Create new sponsor
-      const newSponsor = {
-        id: Date.now(),
+      // FIXED: Updated to include email and phone when creating sponsor
+      console.log("Creating sponsor with data:", newSponsorData);
+      finalData.newSponsor = {
         ...newSponsorData,
+        // Ensure email and phone are included
+        email: newSponsorData.email || null,
+        phone: newSponsorData.phone || null,
       };
-      finalData.newSponsor = newSponsor;
     }
 
     try {
+      console.log("Submitting final data:", finalData);
       // Submit child data - the backend will handle creating the photo in the gallery
       await onSubmit(finalData);
       resetForm();
@@ -304,6 +332,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
     if (currentStep > 1) setCurrentStep(currentStep - 1);
   };
 
+  // FIXED: Updated validation to require email OR phone for sponsors/proxies
   const isStepValid = () => {
     switch (currentStep) {
       case 1:
@@ -322,11 +351,13 @@ export const ChildForm: React.FC<ChildFormProps> = ({
         if (
           showNewSponsorForm &&
           newSponsorData.fullName &&
-          newSponsorData.contact
+          (newSponsorData.email || newSponsorData.phone) // FIXED: Require email OR phone
         ) {
           if (showNewProxyForm) {
             return (
-              newProxyData.fullName && newProxyData.contact && newProxyData.role
+              newProxyData.fullName &&
+              (newProxyData.email || newProxyData.phone) && // FIXED: Require email OR phone
+              newProxyData.role
             );
           }
           return true;
@@ -404,7 +435,7 @@ export const ChildForm: React.FC<ChildFormProps> = ({
             />
           )}
 
-          {/* Step 4: Additional Details with Image Upload */}
+          {/* Step 4: Additional Details with Photo Upload */}
           {currentStep === 4 && (
             <div className="space-y-8">
               <div className="flex items-center space-x-3 mb-6">
@@ -503,39 +534,50 @@ export const ChildForm: React.FC<ChildFormProps> = ({
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between pt-8 border-t border-gray-200 mt-8">
-            <button
-              type="button"
-              onClick={prevStep}
-              disabled={currentStep === 1}
-              className="flex items-center space-x-2 px-6 py-3 text-gray-600 font-medium rounded-xl hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-            >
-              <ChevronLeft size={20} />
-              <span>Previous</span>
-            </button>
+          <div className="mt-12 pt-8 border-t border-gray-200">
+            <div className="flex justify-between items-center">
+              <div>
+                {currentStep > 1 && (
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    className="flex items-center space-x-2 px-6 py-3 text-gray-600 font-medium rounded-xl hover:bg-gray-100 transition-all duration-200"
+                  >
+                    <ChevronLeft size={20} />
+                    <span>Previous</span>
+                  </button>
+                )}
+              </div>
 
-            <div className="flex space-x-4">
-              {currentStep < 4 ? (
-                <button
-                  type="button"
-                  onClick={nextStep}
-                  disabled={!isStepValid()}
-                  className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg"
-                >
-                  <span>Next Step</span>
-                  <ChevronRight size={20} />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={!isStepValid()}
-                  className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg"
-                >
-                  <Check size={20} />
-                  <span>Register Child</span>
-                </button>
-              )}
+              <div>
+                <span className="text-sm text-gray-500 mr-4">
+                  Step {currentStep} of 4
+                </span>
+              </div>
+
+              <div>
+                {currentStep < 4 ? (
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={!isStepValid()}
+                    className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg"
+                  >
+                    <span>Next Step</span>
+                    <ChevronRight size={20} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={!isStepValid()}
+                    className="flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-xl hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105 shadow-lg"
+                  >
+                    <Check size={20} />
+                    <span>Register Child</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

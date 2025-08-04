@@ -7,6 +7,8 @@ interface Sponsor {
   id: number;
   fullName: string;
   contact: string;
+  email?: string;
+  phone?: string;
   proxy?: {
     fullName: string;
     role: string;
@@ -18,6 +20,8 @@ interface Proxy {
   fullName: string;
   role: string;
   contact: string;
+  email?: string;
+  phone?: string;
 }
 
 interface SponsorSelectionStepProps {
@@ -31,6 +35,8 @@ interface SponsorSelectionStepProps {
   setSelectedSponsors: (sponsors: Sponsor[]) => void;
   newSponsorData: {
     fullName: string;
+    email: string;
+    phone: string;
     contact: string;
     proxyId: string;
   };
@@ -45,6 +51,8 @@ interface SponsorSelectionStepProps {
   setSelectedProxy: (proxy: Proxy | null) => void;
   newProxyData: {
     fullName: string;
+    email: string;
+    phone: string;
     contact: string;
     role: string;
     description: string;

@@ -2,10 +2,72 @@ import express from 'express';
 import { prisma } from '../lib/db'; 
 const router = express.Router();
 
-// GET all sponsors
+// GET all sponsors with pagination and filtering
 router.get('/', async (req, res) => {
   try {
+    console.log('Sponsors API called with query:', req.query);
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const search = (req.query.search as string)?.trim() || '';
+    const proxyId = req.query.proxyId as string;
+    const hasSponsorship = req.query.hasSponsorship as string; // 'true' | 'false' | undefined
+
+    console.log('Search term received:', search, 'Length:', search.length);
+
+    const skip = (page - 1) * limit;
+
+    // Build where clause based on filters
+    const where: any = {};
+
+    // Search filter
+    if (search && search.length > 0) {
+      console.log('Adding search filter for:', search);
+      const searchLower = search.toLowerCase();
+      where.OR = [
+        { fullName: { contains: searchLower } },
+        { email: { contains: searchLower } },
+        { phone: { contains: searchLower } },
+        { contact: { contains: searchLower } },
+        {
+          proxy: {
+            fullName: { contains: searchLower }
+          }
+        }
+      ];
+    }
+
+    // Proxy filter
+    if (proxyId && proxyId !== 'all') {
+      if (proxyId === 'none') {
+        where.proxyId = null;
+      } else if (proxyId === 'direct') {
+        where.proxyId = null;
+      } else {
+        const proxyIdNum = parseInt(proxyId);
+        if (!isNaN(proxyIdNum)) {
+          where.proxyId = proxyIdNum;
+        }
+      }
+    }
+
+    // Sponsorship filter
+    if (hasSponsorship && hasSponsorship !== 'all') {
+      if (hasSponsorship === 'true') {
+        where.sponsorships = { some: { isActive: true } };
+      } else if (hasSponsorship === 'false') {
+        where.sponsorships = { none: { isActive: true } };
+      }
+    }
+
+    console.log('Final where clause:', JSON.stringify(where, null, 2));
+
+    // Get total count for pagination
+    const totalCount = await prisma.sponsor.count({ where });
+
+    // Get sponsors with pagination
     const sponsors = await prisma.sponsor.findMany({
+      where,
       include: {
         proxy: {
           select: {
@@ -24,7 +86,14 @@ router.get('/', async (req, res) => {
               select: {
                 id: true,
                 firstName: true,
-                lastName: true
+                lastName: true,
+                school: {
+                  select: {
+                    id: true,
+                    name: true,
+                    location: true
+                  }
+                }
               }
             }
           }
@@ -33,13 +102,49 @@ router.get('/', async (req, res) => {
           select: { sponsorships: true }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
     });
 
-    res.json(sponsors);
+    // Calculate pagination info
+    const totalPages = Math.ceil(totalCount / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+    const startIndex = skip + 1;
+    const endIndex = Math.min(skip + limit, totalCount);
+
+    console.log(`Returning ${sponsors.length} sponsors out of ${totalCount} total`);
+
+    const response = {
+      data: sponsors,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalCount,
+        limit,
+        hasNextPage,
+        hasPrevPage,
+        startIndex,
+        endIndex
+      }
+    };
+
+    res.json(response);
   } catch (error) {
     console.error('Error fetching sponsors:', error);
-    res.status(500).json({ error: 'Failed to fetch sponsors' });
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    console.error('Error stack:', errorStack);
+    
+    // Send a more detailed error response for debugging
+    res.status(500).json({ 
+      error: 'Failed to fetch sponsors',
+      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
+    });
   }
 });
 
