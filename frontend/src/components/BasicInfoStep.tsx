@@ -1,5 +1,6 @@
-import React from "react";
-import { User } from "lucide-react";
+import React, { useState } from "react";
+import { User, GraduationCap } from "lucide-react";
+import { SearchableSelect } from "./SearchableSelect";
 
 interface School {
   id: number;
@@ -43,6 +44,33 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
   schools,
   onChange,
 }) => {
+  // State for school search functionality
+  const [schoolSearchTerm, setSchoolSearchTerm] = useState("");
+
+  // Prepare school options for SearchableSelect
+  const schoolOptions = [
+    { value: "", label: "Select School" },
+    ...schools.map((school) => ({
+      value: school.id.toString(),
+      label: school.name,
+      sublabel: school.location,
+    })),
+  ];
+
+  // Handle school selection
+  const handleSchoolChange = (value: string) => {
+    // Create a synthetic event to maintain compatibility with existing onChange handler
+    const syntheticEvent = {
+      target: {
+        name: "schoolId",
+        value: value,
+      },
+    } as React.ChangeEvent<HTMLSelectElement>;
+
+    onChange(syntheticEvent);
+    setSchoolSearchTerm(""); // Clear search after selection
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center space-x-3 mb-6">
@@ -112,24 +140,21 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
           </select>
         </div>
 
-        <div className="space-y-2">
-          <label className="block text-sm font-semibold text-gray-700">
-            School *
-          </label>
-          <select
-            name="schoolId"
+        {/* Searchable School Select - Spans full width */}
+        <div className="md:col-span-2 space-y-2">
+          <SearchableSelect
+            label="School *"
+            icon={
+              <GraduationCap size={16} className="inline mr-1 text-blue-600" />
+            }
             value={formData.schoolId}
-            onChange={onChange}
-            required
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/50"
-          >
-            <option value="">Select School</option>
-            {schools.map((school) => (
-              <option key={school.id} value={school.id}>
-                {school.name} - {school.location}
-              </option>
-            ))}
-          </select>
+            onValueChange={handleSchoolChange}
+            options={schoolOptions}
+            searchTerm={schoolSearchTerm}
+            onSearchChange={setSchoolSearchTerm}
+            placeholder="Search schools..."
+            emptyMessage={`No schools found matching "${schoolSearchTerm}"`}
+          />
         </div>
 
         <div className="space-y-2">
