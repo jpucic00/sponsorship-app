@@ -7,7 +7,6 @@ import {
   Heart,
   Phone,
   Eye,
-  Edit,
   Link2,
   Filter,
   X,
