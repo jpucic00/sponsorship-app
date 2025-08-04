@@ -462,14 +462,16 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
                           <div className="flex space-x-2">
                             <button
                               onClick={() => onViewSponsor(sponsor.id)}
-                              className="flex items-center space-x-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                              className="flex items-center space-x-1
+                               px-3 py-1.5 text-xs
+                               bg-blue-100 hover:bg-blue-200
+                               text-blue-700 hover:text-blue-800
+                               font-medium
+                               rounded-md
+                               transition-colors duration-200"
                             >
                               <Eye size={14} />
                               <span>View</span>
-                            </button>
-                            <button className="flex items-center space-x-1 px-3 py-2 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200">
-                              <Edit size={14} />
-                              <span>Edit</span>
                             </button>
                           </div>
                         </td>

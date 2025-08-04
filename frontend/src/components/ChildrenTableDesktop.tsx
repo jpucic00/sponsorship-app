@@ -1,5 +1,5 @@
 import React from "react";
-import { Eye, Camera } from "lucide-react";
+import { Eye, Heart, Camera } from "lucide-react";
 import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface Child {
@@ -11,7 +11,7 @@ interface Child {
   class: string;
   isSponsored: boolean;
   dateEnteredRegister: string;
-  lastProfileUpdate: string; // Added this field
+  lastProfileUpdate: string;
   // Image fields
   photoBase64?: string;
   photoMimeType?: string;
@@ -76,13 +76,10 @@ export const ChildrenTableDesktop: React.FC<ChildrenTableDesktopProps> = ({
               School & Class
             </th>
             <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-              Sponsorship Status
+              Sponsorship Details
             </th>
             <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
               Registration Date
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-              Last Updated
             </th>
             <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
               Actions
@@ -97,95 +94,92 @@ export const ChildrenTableDesktop: React.FC<ChildrenTableDesktopProps> = ({
                 index % 2 === 0 ? "bg-white" : "bg-gray-50/30"
               }`}
             >
-              {/* Child Name with Photo */}
+              {/* Child Name & Image */}
               <td className="px-6 py-4">
                 <div className="flex items-center space-x-3">
-                  {hasImage(child) ? (
-                    <img
-                      src={getImageSrc(child)}
-                      alt={`${child.firstName} ${child.lastName}`}
-                      className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-md"
-                      onError={(e) => {
-                        // Fallback to initials on error
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = "none";
-                        const nextSibling =
-                          target.nextElementSibling as HTMLElement;
-                        if (nextSibling) {
-                          nextSibling.classList.remove("hidden");
-                        }
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className={`w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold ${
-                      hasImage(child) ? "hidden" : ""
-                    }`}
-                  >
-                    {child.firstName[0]}
-                    {child.lastName[0]}
+                  <div className="relative">
+                    {hasImage(child) ? (
+                      <img
+                        src={getImageSrc(child)}
+                        alt={`${child.firstName} ${child.lastName}`}
+                        className="w-12 h-12 rounded-lg object-cover border-2 border-white shadow-md"
+                        onError={(e) => {
+                          // Fallback to initials on error
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = "none";
+                          const fallback =
+                            target.nextElementSibling as HTMLElement;
+                          if (fallback) {
+                            fallback.style.display = "flex";
+                          }
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={`w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-sm ${
+                        hasImage(child) ? "hidden" : "flex"
+                      }`}
+                    >
+                      {child.firstName[0]}
+                      {child.lastName[0]}
+                    </div>
+                    {hasImage(child) && (
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                        <Camera size={8} className="text-white" />
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <div className="text-lg font-bold text-gray-900">
+                    <div className="text-sm font-bold text-gray-900">
                       {child.firstName} {child.lastName}
                     </div>
-                    <div className="text-sm text-gray-600 flex items-center space-x-2">
-                      <span>ID: #{child.id}</span>
-                      {hasImage(child) && (
-                        <div className="flex items-center space-x-1 text-green-600">
-                          <Camera size={12} />
-                          <span className="text-xs">Photo</span>
-                        </div>
-                      )}
-                    </div>
+                    <div className="text-xs text-gray-500">ID: #{child.id}</div>
                   </div>
                 </div>
               </td>
 
               {/* Age & Gender */}
               <td className="px-6 py-4">
-                <div className="text-sm">
-                  <div className="font-semibold text-gray-900">
-                    {calculateAge(child.dateOfBirth)} years old
-                  </div>
-                  <div className="text-gray-600">{child.gender}</div>
+                <div className="text-sm font-medium text-gray-900">
+                  {calculateAge(child.dateOfBirth)} years old
+                </div>
+                <div className="text-xs text-gray-500">
+                  {child.gender} • {child.class}
                 </div>
               </td>
 
               {/* School & Class */}
               <td className="px-6 py-4">
-                <div className="text-sm">
-                  <div className="font-semibold text-gray-900">
-                    {child.school.name}
-                  </div>
-                  <div className="text-gray-600">
-                    {child.class} • {child.school.location}
-                  </div>
+                <div className="text-sm font-medium text-gray-900">
+                  {child.school.name}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {child.school.location}
                 </div>
               </td>
 
-              {/* Sponsorship Status - Updated to be more compact */}
+              {/* Sponsorship Status */}
               <td className="px-6 py-4">
                 {child.isSponsored ? (
-                  <div className="space-y-1">
+                  <div className="space-y-2">
                     <span className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
                       ✅ Sponsored ({child.sponsorships.length})
                     </span>
-                    {child.sponsorships.length > 0 && (
-                      <div className="text-xs text-gray-600">
+                    {child.sponsorships.slice(0, 2).map((sponsorship, idx) => (
+                      <div key={idx} className="text-xs text-gray-600">
                         <div className="font-medium">
-                          {child.sponsorships[0].sponsor.fullName}
+                          {sponsorship.sponsor.fullName}
                         </div>
-                        {child.sponsorships[0].sponsor.proxy && (
+                        {sponsorship.sponsor.proxy && (
                           <div className="text-purple-600">
-                            via {child.sponsorships[0].sponsor.proxy.fullName}
+                            via {sponsorship.sponsor.proxy.fullName}
                           </div>
                         )}
-                        {child.sponsorships.length > 1 && (
-                          <div className="text-gray-500">
-                            +{child.sponsorships.length - 1} more
-                          </div>
-                        )}
+                      </div>
+                    ))}
+                    {child.sponsorships.length > 2 && (
+                      <div className="text-xs text-gray-500">
+                        +{child.sponsorships.length - 2} more
                       </div>
                     )}
                   </div>
@@ -211,30 +205,23 @@ export const ChildrenTableDesktop: React.FC<ChildrenTableDesktopProps> = ({
                 </div>
               </td>
 
-              {/* Last Updated - New Column */}
+              {/* Actions - Simple Buttons */}
               <td className="px-6 py-4">
-                <div className="space-y-1">
-                  <div className="text-sm font-medium text-gray-900">
-                    {formatDateTime(child.lastProfileUpdate)}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {
-                      formatDateTimeWithRelative(child.lastProfileUpdate)
-                        .relative
-                    }
-                  </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => onViewChild(child.id)}
+                    className="flex items-center cursor-pointer space-x-1
+                               px-3 py-1.5 text-xs
+                               bg-blue-100 hover:bg-blue-200
+                               text-blue-700 hover:text-blue-800
+                               font-medium
+                               rounded-md
+                               transition-colors duration-200"
+                  >
+                    <Eye size={14} />
+                    <span>View</span>
+                  </button>
                 </div>
-              </td>
-
-              {/* Actions - Simplified */}
-              <td className="px-6 py-4">
-                <button
-                  onClick={() => onViewChild(child.id)}
-                  className="flex items-center space-x-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                >
-                  <Eye size={14} />
-                  <span>View Details</span>
-                </button>
               </td>
             </tr>
           ))}

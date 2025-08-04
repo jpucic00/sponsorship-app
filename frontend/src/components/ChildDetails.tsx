@@ -864,7 +864,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                                   <button
                                     onClick={() =>
                                       navigator.clipboard.writeText(
-                                        sponsorship.sponsor.proxy.email!
+                                        sponsorship.sponsor.proxy?.email!
                                       )
                                     }
                                     className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
@@ -905,7 +905,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                                   <button
                                     onClick={() =>
                                       navigator.clipboard.writeText(
-                                        sponsorship.sponsor.proxy.phone!
+                                        sponsorship.sponsor.proxy?.phone!
                                       )
                                     }
                                     className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
@@ -948,7 +948,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                                   <button
                                     onClick={() =>
                                       navigator.clipboard.writeText(
-                                        sponsorship.sponsor.proxy.contact
+                                        sponsorship.sponsor.proxy?.contact!
                                       )
                                     }
                                     className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
@@ -991,7 +991,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                                   <button
                                     onClick={() =>
                                       navigator.clipboard.writeText(
-                                        sponsorship.sponsor.proxy.description!
+                                        sponsorship.sponsor.proxy?.description!
                                       )
                                     }
                                     className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"

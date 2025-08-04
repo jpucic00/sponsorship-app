@@ -64,7 +64,6 @@ export const ProxySelector: React.FC<ProxySelectorProps> = ({
   handleNewProxyChange,
   proxySearchTerm,
   setProxySearchTerm,
-  newSponsorData,
   handleNewSponsorChange,
 }) => {
   // FIXED: Show initial list by default, filtered list after search

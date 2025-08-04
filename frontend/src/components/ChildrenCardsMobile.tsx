@@ -1,5 +1,12 @@
 import React from "react";
-import { GraduationCap, Calendar, Heart, Camera, Clock } from "lucide-react";
+import {
+  GraduationCap,
+  Calendar,
+  Heart,
+  Camera,
+  Clock,
+  Eye,
+} from "lucide-react";
 import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface Child {
@@ -11,7 +18,7 @@ interface Child {
   class: string;
   isSponsored: boolean;
   dateEnteredRegister: string;
-  lastProfileUpdate: string; // Added this field
+  lastProfileUpdate: string;
   // Image fields
   photoBase64?: string;
   photoMimeType?: string;
@@ -188,14 +195,36 @@ export const ChildrenCardsMobile: React.FC<ChildrenCardsMobileProps> = ({
             )}
           </div>
 
-          {/* Actions - Simplified, removed Find Sponsor button */}
-          <div className="flex">
+          {/* Actions - Simple Buttons */}
+          <div className="flex space-x-2">
             <button
               onClick={() => onViewChild(child.id)}
-              className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-center"
+              className="flex-1 flex items-center justify-center space-x-1
+                         px-3 py-2 text-sm
+                         bg-blue-100 hover:bg-blue-200
+                         text-blue-700 hover:text-blue-800
+                         font-medium
+                         rounded-md
+                         transition-colors duration-200"
             >
-              View Details
+              <Eye size={14} />
+              <span>View</span>
             </button>
+
+            {!child.isSponsored && (
+              <button
+                className="flex-1 flex items-center justify-center space-x-1
+                           px-3 py-2 text-sm
+                           bg-rose-100 hover:bg-rose-200
+                           text-rose-700 hover:text-rose-800
+                           font-medium
+                           rounded-md
+                           transition-colors duration-200"
+              >
+                <Heart size={14} />
+                <span>Find Sponsor</span>
+              </button>
+            )}
           </div>
         </div>
       ))}
