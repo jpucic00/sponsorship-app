@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { Pagination } from "./Pagination";
 
+import { createPortal } from "react-dom";
+
 interface Sponsor {
   id: number;
   fullName: string;
@@ -662,95 +664,102 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
       </div>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-10 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertTriangle className="text-red-600" size={24} />
+      {showDeleteModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="text-red-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    Delete Sponsor
+                  </h3>
+                  <p className="text-gray-600">This action cannot be undone</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">
-                  Delete Sponsor
-                </h3>
-                <p className="text-gray-600">This action cannot be undone</p>
+
+              <p className="text-gray-700 mb-6">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold">"{modalData.sponsorName}"</span>
+                ?
+              </p>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={closeModals}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteSponsor}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
               </div>
             </div>
-
-            <p className="text-gray-700 mb-6">
-              Are you sure you want to delete{" "}
-              <span className="font-semibold">"{modalData.sponsorName}"</span>?
-            </p>
-
-            <div className="flex space-x-3">
-              <button
-                onClick={closeModals}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDeleteSponsor}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       {/* Error Modal */}
-      {showErrorModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-10 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <X className="text-red-600" size={24} />
+      {showErrorModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <X className="text-red-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Error</h3>
+                  <p className="text-gray-600">Something went wrong</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Error</h3>
-                <p className="text-gray-600">Something went wrong</p>
-              </div>
+
+              <p className="text-gray-700 mb-6">{modalData.errorMessage}</p>
+
+              <button
+                onClick={closeModals}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                OK
+              </button>
             </div>
-
-            <p className="text-gray-700 mb-6">{modalData.errorMessage}</p>
-
-            <button
-              onClick={closeModals}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       {/* Success Modal */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-10 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="text-green-600" size={24} />
+      {showSuccessModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle className="text-green-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Success</h3>
+                  <p className="text-gray-600">Operation completed</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">Success</h3>
-                <p className="text-gray-600">Operation completed</p>
-              </div>
+
+              <p className="text-gray-700 mb-6">{modalData.successMessage}</p>
+
+              <button
+                onClick={closeModals}
+                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                OK
+              </button>
             </div>
-
-            <p className="text-gray-700 mb-6">{modalData.successMessage}</p>
-
-            <button
-              onClick={closeModals}
-              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
