@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import path from 'path';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './lib/db'; 
 
 // Import route modules
 import childrenRoutes from './routes/children';
@@ -18,7 +18,6 @@ import childPhotosRoutes from './routes/child-photos';
 dotenv.config();
 
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
