@@ -1,150 +1,115 @@
+// Enhanced backend/src/routes/sponsors.ts
 import express from 'express';
 import { prisma } from '../lib/db'; 
+
 const router = express.Router();
 
-// GET all sponsors with pagination and filtering
+// GET all sponsors with pagination and search
 router.get('/', async (req, res) => {
   try {
-    console.log('Sponsors API called with query:', req.query);
-
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
-    const search = (req.query.search as string)?.trim() || '';
-    const proxyId = req.query.proxyId as string;
-    const hasSponsorship = req.query.hasSponsorship as string; // 'true' | 'false' | undefined
-
-    console.log('Search term received:', search, 'Length:', search.length);
+    const search = req.query.search as string || '';
+    const proxyFilter = req.query.proxy as string || 'all';
+    const sponsorshipFilter = req.query.sponsorship as string || 'all';
 
     const skip = (page - 1) * limit;
 
-    // Build where clause based on filters
+    // Build where clause for filtering
     const where: any = {};
 
     // Search filter
-    if (search && search.length > 0) {
-      console.log('Adding search filter for:', search);
-      const searchLower = search.toLowerCase();
+    if (search) {
       where.OR = [
-        { fullName: { contains: searchLower } },
-        { email: { contains: searchLower } },
-        { phone: { contains: searchLower } },
-        { contact: { contains: searchLower } },
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+        { contact: { contains: search, mode: 'insensitive' } },
         {
           proxy: {
-            fullName: { contains: searchLower }
+            fullName: { contains: search, mode: 'insensitive' }
           }
         }
       ];
     }
 
     // Proxy filter
-    if (proxyId && proxyId !== 'all') {
-      if (proxyId === 'none') {
-        where.proxyId = null;
-      } else if (proxyId === 'direct') {
-        where.proxyId = null;
-      } else {
-        const proxyIdNum = parseInt(proxyId);
-        if (!isNaN(proxyIdNum)) {
-          where.proxyId = proxyIdNum;
-        }
-      }
+    if (proxyFilter === 'with_proxy') {
+      where.proxyId = { not: null };
+    } else if (proxyFilter === 'without_proxy') {
+      where.proxyId = null;
     }
 
     // Sponsorship filter
-    if (hasSponsorship && hasSponsorship !== 'all') {
-      if (hasSponsorship === 'true') {
-        where.sponsorships = { some: { isActive: true } };
-      } else if (hasSponsorship === 'false') {
-        where.sponsorships = { none: { isActive: true } };
-      }
+    if (sponsorshipFilter === 'active') {
+      where.sponsorships = {
+        some: { isActive: true }
+      };
+    } else if (sponsorshipFilter === 'inactive') {
+      where.sponsorships = {
+        none: { isActive: true }
+      };
     }
 
-    console.log('Final where clause:', JSON.stringify(where, null, 2));
-
-    // Get total count for pagination
-    const totalCount = await prisma.sponsor.count({ where });
-
-    // Get sponsors with pagination
-    const sponsors = await prisma.sponsor.findMany({
-      where,
-      include: {
-        proxy: {
-          select: {
-            id: true,
-            fullName: true,
-            role: true,
-            contact: true,
-            email: true,
-            phone: true
-          }
-        },
-        sponsorships: {
-          where: { isActive: true },
-          include: {
-            child: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                school: {
-                  select: {
-                    id: true,
-                    name: true,
-                    location: true
+    const [sponsors, totalCount] = await Promise.all([
+      prisma.sponsor.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          proxy: {
+            select: {
+              id: true,
+              fullName: true,
+              role: true,
+              email: true,
+              phone: true,
+              contact: true,
+              description: true
+            }
+          },
+          sponsorships: {
+            where: { isActive: true },
+            include: {
+              child: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  school: {
+                    select: {
+                      name: true,
+                      location: true
+                    }
                   }
                 }
               }
             }
           }
         },
-        _count: {
-          select: { sponsorships: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit
-    });
+        orderBy: { fullName: 'asc' }
+      }),
+      prisma.sponsor.count({ where })
+    ]);
 
-    // Calculate pagination info
     const totalPages = Math.ceil(totalCount / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
-    const startIndex = skip + 1;
-    const endIndex = Math.min(skip + limit, totalCount);
 
-    console.log(`Returning ${sponsors.length} sponsors out of ${totalCount} total`);
-
-    const response = {
+    res.json({
       data: sponsors,
       pagination: {
         currentPage: page,
         totalPages,
         totalCount,
         limit,
-        hasNextPage,
-        hasPrevPage,
-        startIndex,
-        endIndex
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+        startIndex: skip + 1,
+        endIndex: Math.min(skip + limit, totalCount)
       }
-    };
-
-    res.json(response);
+    });
   } catch (error) {
     console.error('Error fetching sponsors:', error);
-    
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    
-    console.error('Error stack:', errorStack);
-    
-    // Send a more detailed error response for debugging
-    res.status(500).json({ 
-      error: 'Failed to fetch sponsors',
-      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
-      stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
-    });
+    res.status(500).json({ error: 'Failed to fetch sponsors' });
   }
 });
 
@@ -161,9 +126,9 @@ router.get('/:id', async (req, res) => {
             id: true,
             fullName: true,
             role: true,
-            contact: true,
             email: true,
             phone: true,
+            contact: true,
             description: true
           }
         },
@@ -174,7 +139,6 @@ router.get('/:id', async (req, res) => {
                 id: true,
                 firstName: true,
                 lastName: true,
-                dateOfBirth: true,
                 school: {
                   select: {
                     name: true,
@@ -256,7 +220,8 @@ router.post('/', async (req, res) => {
             role: true,
             contact: true,
             email: true,
-            phone: true
+            phone: true,
+            description: true
           }
         }
       }
@@ -348,20 +313,27 @@ router.put('/:id', async (req, res) => {
             role: true,
             contact: true,
             email: true,
-            phone: true
+            phone: true,
+            description: true
           }
         },
         sponsorships: {
-          where: { isActive: true },
           include: {
             child: {
               select: {
                 id: true,
                 firstName: true,
-                lastName: true
+                lastName: true,
+                school: {
+                  select: {
+                    name: true,
+                    location: true
+                  }
+                }
               }
             }
-          }
+          },
+          orderBy: { startDate: 'desc' }
         }
       }
     });
@@ -395,7 +367,7 @@ router.delete('/:id', async (req, res) => {
     // Check if sponsor has active sponsorships
     if (existingSponsor.sponsorships.length > 0) {
       return res.status(400).json({ 
-        error: 'Cannot delete sponsor with active sponsorships. End sponsorships first.' 
+        error: 'Cannot delete sponsor with active sponsorships. End sponsorships first.'
       });
     }
 
@@ -404,66 +376,9 @@ router.delete('/:id', async (req, res) => {
     });
 
     res.json({ message: 'Sponsor deleted successfully' });
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('Error deleting sponsor:', error);
     res.status(500).json({ error: 'Failed to delete sponsor' });
-  }
-});
-
-// GET sponsors with search functionality
-router.get('/search/:query', async (req, res) => {
-  try {
-    const { query } = req.params;
-    const searchTerm = query.toLowerCase();
-
-    const sponsors = await prisma.sponsor.findMany({
-      where: {
-        OR: [
-          { fullName: { contains: searchTerm } },
-          { email: { contains: searchTerm } },
-          { phone: { contains: searchTerm } },
-          { contact: { contains: searchTerm } },
-          {
-            proxy: {
-              fullName: { contains: searchTerm }
-            }
-          }
-        ]
-      },
-      include: {
-        proxy: {
-          select: {
-            id: true,
-            fullName: true,
-            role: true,
-            contact: true,
-            email: true,
-            phone: true
-          }
-        },
-        sponsorships: {
-          where: { isActive: true },
-          include: {
-            child: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true
-              }
-            }
-          }
-        },
-        _count: {
-          select: { sponsorships: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    res.json(sponsors);
-  } catch (error: unknown) {
-    console.error('Error searching sponsors:', error);
-    res.status(500).json({ error: 'Failed to search sponsors' });
   }
 });
 

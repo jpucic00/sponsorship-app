@@ -1,9 +1,10 @@
+// File: frontend/src/components/ChildrenFilters.tsx
 import React from "react";
 import {
   Filter,
   Heart,
   Users,
-  GraduationCap,
+  SchoolIcon,
   UserCheck,
   Link2,
   X,
@@ -59,10 +60,10 @@ interface ChildrenFiltersProps {
   proxySearchTerm: string;
   setProxySearchTerm: (term: string) => void;
 
-  // Data
-  schools: School[];
-  sponsors: Sponsor[];
-  proxies: Proxy[];
+  // Data - Allow various response structures
+  schools: School[] | any;
+  sponsors: Sponsor[] | any;
+  proxies: Proxy[] | any;
 
   // Actions
   clearAllFilters: () => void;
@@ -94,10 +95,28 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
   proxies,
   clearAllFilters,
 }) => {
+  // Helper function to safely extract arrays from API responses
+  const safeExtractArray = <T,>(data: any, defaultValue: T[] = []): T[] => {
+    if (!data) return defaultValue;
+    if (Array.isArray(data)) return data;
+    if (data.data && Array.isArray(data.data)) return data.data;
+    if (data.results && Array.isArray(data.results)) return data.results;
+    if (data.items && Array.isArray(data.items)) return data.items;
+
+    // For debugging - log unexpected structures
+    console.warn("Unexpected data structure in ChildrenFilters:", data);
+    return defaultValue;
+  };
+
+  // Get safe arrays for processing
+  const safeProxies = safeExtractArray<Proxy>(proxies);
+  const safeSchools = safeExtractArray<School>(schools);
+  const safeSponsors = safeExtractArray<Sponsor>(sponsors);
+
   // Prepare options for searchable selects
   const schoolOptions = [
     { value: "all", label: "All Schools" },
-    ...schools.map((school) => ({
+    ...safeSchools.map((school) => ({
       value: school.id.toString(),
       label: school.name,
       sublabel: school.location,
@@ -107,7 +126,7 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
   const sponsorOptions = [
     { value: "all", label: "All" },
     { value: "none", label: "No Sponsor" },
-    ...sponsors.map((sponsor) => ({
+    ...safeSponsors.map((sponsor) => ({
       value: sponsor.id.toString(),
       label: sponsor.fullName,
       sublabel: sponsor.proxy ? `via ${sponsor.proxy.fullName}` : undefined,
@@ -118,7 +137,7 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
     { value: "all", label: "All" },
     { value: "none", label: "No Proxy" },
     { value: "direct", label: "Direct Contact" },
-    ...proxies.map((proxy) => ({
+    ...safeProxies.map((proxy) => ({
       value: proxy.id.toString(),
       label: proxy.fullName,
       sublabel: proxy.role,
@@ -126,9 +145,9 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Top row with Filter button - fixed positioning */}
-      <div className="flex items-center justify-end">
+    <div className="flex flex-col lg:flex-row items-center justify-between space-y-4 lg:space-y-0 lg:space-x-6">
+      {/* Filter Toggle */}
+      <div className="flex items-center space-x-4">
         <button
           onClick={() => setShowFilters(!showFilters)}
           className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
@@ -149,8 +168,8 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
 
       {/* Filters Panel */}
       {showFilters && (
-        <div className="bg-white/60 rounded-2xl p-6 border border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <div className="w-full mt-6 pt-6 border-t border-gray-200 relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 relative overflow-visible">
             {/* Sponsorship Status Filter */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-gray-700">
@@ -186,9 +205,9 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
                   onChange={(e) => setFilterGender(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-sm appearance-none pr-8 hover:bg-gray-50"
                 >
-                  <option value="all">All</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
+                  <option value="all">All Genders</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
                 </select>
                 <ChevronDown
                   size={14}
@@ -200,7 +219,7 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
             {/* School Filter with Search */}
             <SearchableSelect
               label="School"
-              icon={<GraduationCap size={16} className="inline mr-1" />}
+              icon={<SchoolIcon size={16} className="inline mr-1" />}
               value={filterSchool}
               onValueChange={setFilterSchool}
               options={schoolOptions}
@@ -248,56 +267,6 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
               </button>
             </div>
           </div>
-
-          {/* Active Filters Display */}
-          {hasActiveFilters && (
-            <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <div className="flex items-center space-x-2 flex-wrap">
-                <span className="text-sm font-medium text-blue-700">
-                  Active filters:
-                </span>
-                {filterSponsored !== "all" && (
-                  <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                    Status: {filterSponsored}
-                  </span>
-                )}
-                {filterGender !== "all" && (
-                  <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                    Gender: {filterGender}
-                  </span>
-                )}
-                {filterSchool !== "all" && (
-                  <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                    School:{" "}
-                    {
-                      schools.find((s) => s.id.toString() === filterSchool)
-                        ?.name
-                    }
-                  </span>
-                )}
-                {filterSponsor !== "all" && (
-                  <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                    Sponsor:{" "}
-                    {filterSponsor === "none"
-                      ? "No Sponsor"
-                      : sponsors.find((s) => s.id.toString() === filterSponsor)
-                          ?.fullName}
-                  </span>
-                )}
-                {filterProxy !== "all" && (
-                  <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                    Proxy:{" "}
-                    {filterProxy === "none"
-                      ? "No Proxy"
-                      : filterProxy === "direct"
-                      ? "Direct Contact"
-                      : proxies.find((p) => p.id.toString() === filterProxy)
-                          ?.fullName}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>

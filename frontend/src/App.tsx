@@ -1,4 +1,5 @@
-import { useState } from "react";
+// File: frontend/src/App.tsx
+import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Navigation } from "./components/Navigation";
 import { NotificationToast } from "./components/NotificationToast";
@@ -10,8 +11,52 @@ import { Dashboard } from "./components/Dashboard";
 import { ChildrenContainer } from "./components/ChildrenContainer";
 import { SponsorsContainer } from "./components/SponsorsContainer";
 
+interface Proxy {
+  id: number;
+  fullName: string;
+  role: string;
+  contact: string;
+  email?: string;
+  phone?: string;
+  description?: string;
+}
+
 function App() {
   const [notification, setNotification] = useState<string | null>(null);
+  const [proxies, setProxies] = useState<Proxy[]>([]);
+  const [proxiesLoading, setProxiesLoading] = useState(true);
+
+  // Fetch proxies data on app initialization
+  useEffect(() => {
+    const fetchProxies = async () => {
+      try {
+        const response = await fetch("/api/proxies");
+        if (response.ok) {
+          const data = await response.json();
+
+          // Handle different API response structures
+          const proxiesArray = Array.isArray(data)
+            ? data
+            : data.data && Array.isArray(data.data)
+            ? data.data
+            : [];
+
+          setProxies(proxiesArray);
+          console.log("App.tsx - Loaded proxies:", proxiesArray.length);
+        } else {
+          console.error("Failed to fetch proxies:", response.statusText);
+          setProxies([]);
+        }
+      } catch (error) {
+        console.error("Error fetching proxies:", error);
+        setProxies([]);
+      } finally {
+        setProxiesLoading(false);
+      }
+    };
+
+    fetchProxies();
+  }, []);
 
   const showNotification = (message: string) => {
     setNotification(message);
@@ -61,12 +106,51 @@ function App() {
     try {
       console.log("Submitting sponsor data:", sponsorData);
 
+      // Handle new proxy creation if included
+      let finalSponsorData = { ...sponsorData };
+
+      if (sponsorData.newProxy) {
+        try {
+          const proxyResponse = await fetch("/api/proxies", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(sponsorData.newProxy),
+          });
+
+          if (proxyResponse.ok) {
+            const newProxy = await proxyResponse.json();
+            finalSponsorData.proxyId = newProxy.id;
+
+            // Update local proxies state
+            setProxies((prev) => [...prev, newProxy]);
+
+            // Remove the newProxy object from sponsor data
+            delete finalSponsorData.newProxy;
+
+            console.log("New proxy created:", newProxy);
+          } else {
+            const proxyError = await proxyResponse.json();
+            throw new Error(proxyError.error || "Failed to create proxy");
+          }
+        } catch (proxyError) {
+          console.error("Error creating proxy:", proxyError);
+          showNotification(
+            `Error creating proxy: ${
+              proxyError instanceof Error ? proxyError.message : "Unknown error"
+            }`
+          );
+          throw proxyError;
+        }
+      }
+
       const response = await fetch("/api/sponsors", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(sponsorData),
+        body: JSON.stringify(finalSponsorData),
       });
 
       if (response.ok) {
@@ -94,46 +178,27 @@ function App() {
 
   const handleExcelImport = async (data: any[]) => {
     try {
-      console.log("Importing Excel data:", data.length, "records");
+      let successful = 0;
+      let failed = 0;
 
-      const results = await Promise.allSettled(
-        data.map(async (record, index) => {
-          try {
-            const response = await fetch("/api/children", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(record),
-            });
+      for (const row of data) {
+        try {
+          const response = await fetch("/api/children", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(row),
+          });
 
-            if (!response.ok) {
-              const errorData = await response
-                .json()
-                .catch(() => ({ error: "Unknown error" }));
-              throw new Error(
-                `Row ${index + 1}: ${errorData.error || "Failed to import"}`
-              );
-            }
-
-            return await response.json();
-          } catch (error) {
-            console.error(`Error importing row ${index + 1}:`, error);
-            throw error;
+          if (response.ok) {
+            successful++;
+          } else {
+            failed++;
           }
-        })
-      );
-
-      const successful = results.filter((r) => r.status === "fulfilled").length;
-      const failed = results.filter((r) => r.status === "rejected").length;
-
-      console.log("Import results:", { successful, failed });
-
-      if (failed > 0) {
-        console.error(
-          "Failed imports:",
-          results.filter((r) => r.status === "rejected").map((r) => r.reason)
-        );
+        } catch {
+          failed++;
+        }
       }
 
       showNotification(
@@ -170,7 +235,23 @@ function App() {
             />
             <Route
               path="/register-sponsor"
-              element={<SponsorForm onSubmit={handleSponsorSubmit} />}
+              element={
+                proxiesLoading ? (
+                  <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+                    <div className="flex flex-col items-center space-y-4">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-200 border-t-green-600"></div>
+                      <p className="text-gray-600 font-medium">
+                        Loading form data...
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <SponsorForm
+                    onSubmit={handleSponsorSubmit}
+                    proxies={proxies}
+                  />
+                )
+              }
             />
             <Route
               path="/import"

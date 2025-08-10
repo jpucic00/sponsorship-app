@@ -1,14 +1,6 @@
+// File: frontend/src/components/ProxySelector.tsx
 import React, { useState, useEffect } from "react";
-import {
-  Search,
-  Plus,
-  Users,
-  Check,
-  Mail,
-  Phone,
-  MessageSquare,
-  X,
-} from "lucide-react";
+import { Search, Plus, Users, Check, Mail, Phone, X } from "lucide-react";
 
 interface Proxy {
   id: number;
@@ -17,10 +9,11 @@ interface Proxy {
   contact: string;
   email?: string;
   phone?: string;
+  description?: string;
 }
 
 interface ProxySelectorProps {
-  proxies: Proxy[];
+  proxies: Proxy[] | any; // Allow various API response structures
   showNewProxyForm: boolean;
   setShowNewProxyForm: (show: boolean) => void;
   selectedProxy: Proxy | null;
@@ -66,51 +59,47 @@ export const ProxySelector: React.FC<ProxySelectorProps> = ({
   setProxySearchTerm,
   handleNewSponsorChange,
 }) => {
-  // FIXED: Show initial list by default, filtered list after search
   const [hasSearched, setHasSearched] = useState(false);
   const [displayLimit, setDisplayLimit] = useState(10);
 
+  // Helper function to safely extract arrays from API responses
+  const safeExtractArray = <T,>(data: any, defaultValue: T[] = []): T[] => {
+    if (!data) return defaultValue;
+    if (Array.isArray(data)) return data;
+    if (data.data && Array.isArray(data.data)) return data.data;
+    if (data.results && Array.isArray(data.results)) return data.results;
+    if (data.items && Array.isArray(data.items)) return data.items;
+    if (data.proxies && Array.isArray(data.proxies)) return data.proxies;
+
+    console.warn("Unexpected proxies data structure in ProxySelector:", data);
+    return defaultValue;
+  };
+
+  // Get safe proxies array
+  const safeProxies = safeExtractArray<Proxy>(proxies);
+
+  // Debug logging
   useEffect(() => {
     console.log("ProxySelector - Available proxies:", proxies);
-  }, [proxies]);
+    console.log("ProxySelector - Safe proxies array:", safeProxies);
+  }, [proxies, safeProxies]);
 
-  const filteredProxies = proxies.filter(
-    (proxy) =>
-      proxy.fullName.toLowerCase().includes(proxySearchTerm.toLowerCase()) ||
-      proxy.role.toLowerCase().includes(proxySearchTerm.toLowerCase()) ||
-      proxy.contact.toLowerCase().includes(proxySearchTerm.toLowerCase()) ||
-      proxy.email?.toLowerCase().includes(proxySearchTerm.toLowerCase()) ||
-      proxy.phone?.toLowerCase().includes(proxySearchTerm.toLowerCase())
-  );
+  // Filter proxies safely
+  const filteredProxies = safeProxies.filter((proxy) => {
+    const searchLower = proxySearchTerm.toLowerCase();
+    return (
+      proxy.fullName.toLowerCase().includes(searchLower) ||
+      proxy.role.toLowerCase().includes(searchLower) ||
+      proxy.contact.toLowerCase().includes(searchLower) ||
+      proxy.email?.toLowerCase().includes(searchLower) ||
+      proxy.phone?.toLowerCase().includes(searchLower)
+    );
+  });
 
-  // FIXED: Show initial proxies or filtered results
+  // Show initial proxies or filtered results
   const displayProxies = hasSearched
     ? filteredProxies
-    : proxies.slice(0, displayLimit);
-  const hasMoreProxies = !hasSearched && proxies.length > displayLimit;
-
-  // Handle search execution
-  const handleSearch = () => {
-    setHasSearched(true);
-  };
-
-  // Handle Enter key press
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSearch();
-    }
-  };
-
-  // Clear search and show default list
-  const handleClearSearch = () => {
-    setProxySearchTerm("");
-    setHasSearched(false);
-  };
-
-  // Load more proxies in default view
-  const handleLoadMore = () => {
-    setDisplayLimit((prev) => prev + 10);
-  };
+    : safeProxies.slice(0, displayLimit);
 
   const handleProxySelect = (proxy: Proxy) => {
     setSelectedProxy(proxy);
@@ -139,6 +128,11 @@ export const ProxySelector: React.FC<ProxySelectorProps> = ({
     handleNewSponsorChange(fakeEvent);
   };
 
+  const handleSearch = (value: string) => {
+    setProxySearchTerm(value);
+    setHasSearched(value.length > 0);
+  };
+
   return (
     <div className="bg-purple-50 p-6 rounded-xl border border-purple-100">
       <div className="space-y-6">
@@ -153,17 +147,53 @@ export const ProxySelector: React.FC<ProxySelectorProps> = ({
               onClick={handleNoProxy}
               className={`p-4 border-2 rounded-xl transition-all duration-300 ${
                 !showNewProxyForm && !selectedProxy
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                  ? "border-green-500 bg-green-50 shadow-md"
+                  : "border-gray-300 hover:border-gray-400 bg-white"
               }`}
             >
-              <div className="flex items-center justify-center space-x-2">
-                <Check size={20} />
-                <span className="font-medium">No Proxy</span>
+              <Users className="mx-auto mb-2 text-green-600" size={20} />
+              <div className="text-center">
+                <div className="text-sm font-semibold text-gray-900">
+                  No Proxy
+                </div>
+                <div className="text-xs text-gray-600 mt-1">Direct contact</div>
               </div>
-              <p className="text-sm mt-2 opacity-75">
-                Direct communication with sponsor
-              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (safeProxies.length > 0) {
+                  setShowNewProxyForm(false);
+                  setSelectedProxy(null);
+                  const fakeEvent = {
+                    target: { name: "proxyId", value: "" },
+                  } as React.ChangeEvent<HTMLInputElement>;
+                  handleNewSponsorChange(fakeEvent);
+                } else {
+                  alert("No existing proxies found. Please create a new one.");
+                }
+              }}
+              disabled={safeProxies.length === 0}
+              className={`p-4 border-2 rounded-xl transition-all duration-300 ${
+                !showNewProxyForm && !selectedProxy && safeProxies.length > 0
+                  ? "border-purple-500 bg-purple-50 shadow-md"
+                  : safeProxies.length === 0
+                  ? "border-gray-200 bg-gray-100 opacity-50 cursor-not-allowed"
+                  : "border-gray-300 hover:border-gray-400 bg-white"
+              }`}
+            >
+              <Search className="mx-auto mb-2 text-purple-600" size={20} />
+              <div className="text-center">
+                <div className="text-sm font-semibold text-gray-900">
+                  Existing Proxy
+                </div>
+                <div className="text-xs text-gray-600 mt-1">
+                  {safeProxies.length === 0
+                    ? "No proxies available"
+                    : "Select existing"}
+                </div>
+              </div>
             </button>
 
             <button
@@ -171,165 +201,102 @@ export const ProxySelector: React.FC<ProxySelectorProps> = ({
               onClick={handleCreateNewProxy}
               className={`p-4 border-2 rounded-xl transition-all duration-300 ${
                 showNewProxyForm
-                  ? "border-purple-500 bg-purple-50 text-purple-700"
-                  : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                  ? "border-green-500 bg-green-50 shadow-md"
+                  : "border-gray-300 hover:border-gray-400 bg-white"
               }`}
             >
-              <div className="flex items-center justify-center space-x-2">
-                <Plus size={20} />
-                <span className="font-medium">Create New</span>
-              </div>
-              <p className="text-sm mt-2 opacity-75">
-                Add a new proxy/middleman
-              </p>
-            </button>
-
-            <div className="relative">
-              <button
-                type="button"
-                className="w-full p-4 border-2 border-gray-300 bg-white text-gray-700 hover:border-gray-400 rounded-xl transition-all duration-300"
-              >
-                <div className="flex items-center justify-center space-x-2">
-                  <Search size={20} />
-                  <span className="font-medium">Select Existing</span>
+              <Plus className="mx-auto mb-2 text-green-600" size={20} />
+              <div className="text-center">
+                <div className="text-sm font-semibold text-gray-900">
+                  Create New
                 </div>
-                <p className="text-sm mt-2 opacity-75">
-                  Choose from existing proxies
-                </p>
-              </button>
-            </div>
+                <div className="text-xs text-gray-600 mt-1">Add new proxy</div>
+              </div>
+            </button>
           </div>
 
-          {/* Search for Existing Proxies */}
-          {!showNewProxyForm && !selectedProxy && (
+          {/* Proxy Search and Selection */}
+          {!showNewProxyForm && !selectedProxy && safeProxies.length > 0 && (
             <div className="space-y-4">
-              {/* Search Bar */}
-              <div className="flex space-x-2">
-                <div className="relative flex-1">
-                  <Search
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                    size={18}
-                  />
-                  <input
-                    type="text"
-                    value={proxySearchTerm}
-                    onChange={(e) => setProxySearchTerm(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/70"
-                    placeholder="Search by name, role, or contact info..."
-                  />
-                  {proxySearchTerm && (
-                    <button
-                      type="button"
-                      onClick={handleClearSearch}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <X size={18} />
-                    </button>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSearch}
-                  className="px-6 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all duration-200"
-                >
-                  Search
-                </button>
+              <div className="relative">
+                <Search
+                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  size={20}
+                />
+                <input
+                  type="text"
+                  placeholder="Search proxies by name, role, or contact..."
+                  value={proxySearchTerm}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/70"
+                />
               </div>
 
-              {/* Search Status */}
-              {hasSearched && (
-                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                  <p className="text-sm text-blue-700">
-                    {filteredProxies.length > 0 ? (
-                      <>
-                        Found{" "}
-                        <span className="font-semibold">
-                          {filteredProxies.length}
-                        </span>{" "}
-                        proxy{filteredProxies.length !== 1 ? "ies" : ""}{" "}
-                        matching "{proxySearchTerm}"
-                      </>
-                    ) : (
-                      <>No proxies found matching "{proxySearchTerm}"</>
-                    )}
-                  </p>
-                </div>
-              )}
-
-              {/* FIXED: Always show proxy list */}
-              <div className="max-h-60 overflow-y-auto space-y-2 bg-white/50 rounded-xl p-4">
+              <div className="max-h-60 overflow-y-auto space-y-2">
                 {displayProxies.length > 0 ? (
-                  <>
-                    {displayProxies.map((proxy) => (
-                      <div
-                        key={proxy.id}
-                        onClick={() => handleProxySelect(proxy)}
-                        className="p-4 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 cursor-pointer transition-all duration-200"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-semibold text-gray-900">
-                              {proxy.fullName}
-                            </h4>
-                            <p className="text-sm text-purple-600 font-medium">
-                              {proxy.role}
-                            </p>
-                            {proxy.email && (
-                              <p className="text-sm text-gray-600 flex items-center mt-1">
-                                <Mail size={14} className="mr-1" />
-                                {proxy.email}
-                              </p>
-                            )}
-                            {proxy.phone && (
-                              <p className="text-sm text-gray-600 flex items-center mt-1">
-                                <Phone size={14} className="mr-1" />
-                                {proxy.phone}
-                              </p>
-                            )}
-                            {proxy.contact && (
-                              <p className="text-sm text-gray-600 mt-1">
-                                {proxy.contact}
-                              </p>
-                            )}
-                          </div>
-                          <button className="text-purple-600 hover:text-purple-700">
-                            <Check size={20} />
-                          </button>
+                  displayProxies.map((proxy) => (
+                    <div
+                      key={proxy.id}
+                      onClick={() => handleProxySelect(proxy)}
+                      className="p-4 border border-gray-200 rounded-xl cursor-pointer transition-all duration-200 hover:border-purple-300 hover:bg-purple-50 bg-white"
+                    >
+                      <div>
+                        <h4 className="font-bold text-gray-900">
+                          {proxy.fullName}
+                        </h4>
+                        <p className="text-sm text-purple-600 font-medium">
+                          {proxy.role}
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {proxy.email && (
+                            <div className="flex items-center space-x-2 text-xs text-gray-600">
+                              <Mail size={12} />
+                              <span>{proxy.email}</span>
+                            </div>
+                          )}
+                          {proxy.phone && (
+                            <div className="flex items-center space-x-2 text-xs text-gray-600">
+                              <Phone size={12} />
+                              <span>{proxy.phone}</span>
+                            </div>
+                          )}
+                          {proxy.contact && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {proxy.contact}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    ))}
-
-                    {/* Load More Button */}
-                    {hasMoreProxies && (
-                      <div className="text-center py-4">
-                        <button
-                          type="button"
-                          onClick={handleLoadMore}
-                          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
-                        >
-                          Load More Proxies ({proxies.length - displayLimit}{" "}
-                          remaining)
-                        </button>
-                      </div>
-                    )}
-                  </>
-                ) : (
+                    </div>
+                  ))
+                ) : hasSearched ? (
                   <div className="text-center py-8 text-gray-500">
-                    <Users size={48} className="mx-auto mb-4 opacity-50" />
-                    <p>
-                      {hasSearched
-                        ? "No proxies found matching your search."
-                        : "No proxies available."}
+                    <Users size={48} className="mx-auto mb-3 opacity-50" />
+                    <p>No proxies found</p>
+                    <p className="text-sm">
+                      Try adjusting your search or create a new proxy.
                     </p>
-                    <button
-                      type="button"
-                      onClick={handleCreateNewProxy}
-                      className="mt-2 text-purple-600 hover:text-purple-700 font-medium"
-                    >
-                      Create a new proxy instead
-                    </button>
                   </div>
+                ) : safeProxies.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Users size={48} className="mx-auto mb-3 opacity-50" />
+                    <p>No proxies available</p>
+                    <p className="text-sm">
+                      Create a new proxy to get started.
+                    </p>
+                  </div>
+                ) : null}
+
+                {/* Show More Button */}
+                {!hasSearched && safeProxies.length > displayLimit && (
+                  <button
+                    type="button"
+                    onClick={() => setDisplayLimit(displayLimit + 10)}
+                    className="w-full p-3 border border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 transition-all duration-200"
+                  >
+                    Show {Math.min(10, safeProxies.length - displayLimit)} more
+                    proxies
+                  </button>
                 )}
               </div>
             </div>
@@ -337,202 +304,122 @@ export const ProxySelector: React.FC<ProxySelectorProps> = ({
 
           {/* Selected Proxy Display */}
           {selectedProxy && (
-            <div className="bg-purple-100 p-4 rounded-xl border border-purple-200">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-semibold text-purple-900">
-                    Selected Proxy: {selectedProxy.fullName}
-                  </h4>
-                  <p className="text-sm text-purple-700 font-medium">
-                    {selectedProxy.role}
-                  </p>
-                  {selectedProxy.email && (
-                    <p className="text-sm text-purple-600 flex items-center mt-1">
-                      <Mail size={14} className="mr-1" />
-                      {selectedProxy.email}
-                    </p>
-                  )}
-                  {selectedProxy.phone && (
-                    <p className="text-sm text-purple-600 flex items-center mt-1">
-                      <Phone size={14} className="mr-1" />
-                      {selectedProxy.phone}
-                    </p>
-                  )}
-                  {selectedProxy.contact && (
-                    <p className="text-sm text-purple-600 mt-1">
-                      {selectedProxy.contact}
-                    </p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={handleNoProxy}
-                  className="text-purple-600 hover:text-purple-700"
-                >
-                  <X size={20} />
-                </button>
+            <div className="bg-green-100 p-4 rounded-xl border border-green-300 flex items-center justify-between">
+              <div>
+                <h4 className="font-semibold text-green-900 flex items-center">
+                  <Check size={16} className="mr-2" />
+                  Selected: {selectedProxy.fullName}
+                </h4>
+                <p className="text-sm text-green-700">{selectedProxy.role}</p>
               </div>
+              <button
+                type="button"
+                onClick={handleNoProxy}
+                className="text-green-600 hover:text-green-800 p-1"
+                title="Remove selection"
+              >
+                <X size={16} />
+              </button>
             </div>
           )}
 
-          {/* Create New Proxy Form */}
+          {/* New Proxy Form */}
           {showNewProxyForm && (
-            <div className="bg-white/70 p-6 rounded-xl border border-purple-200">
+            <div className="bg-white/90 p-6 rounded-xl border border-purple-200">
+              <h4 className="font-semibold text-purple-900 mb-4">
+                Create New Proxy
+              </h4>
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-lg font-semibold text-purple-900">
-                    Create New Proxy
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={handleNoProxy}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-
-                {/* Proxy Full Name */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Proxy Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={newProxyData.fullName}
-                    onChange={handleNewProxyChange}
-                    required={showNewProxyForm}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/70"
-                    placeholder="Enter proxy's full name"
-                  />
-                </div>
-
-                {/* Role */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Role/Position *
-                  </label>
-                  <input
-                    type="text"
-                    name="role"
-                    value={newProxyData.role}
-                    onChange={handleNewProxyChange}
-                    required={showNewProxyForm}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/70"
-                    placeholder="e.g., Priest, Community Leader, Teacher"
-                  />
-                </div>
-
-                {/* Contact Information Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Email */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">
-                      Email Address
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Full Name *
                     </label>
-                    <div className="relative">
-                      <Mail
-                        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                        size={18}
-                      />
-                      <input
-                        type="email"
-                        name="email"
-                        value={newProxyData.email}
-                        onChange={handleNewProxyChange}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/70"
-                        placeholder="proxy@example.com"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Phone */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-gray-700">
-                      Phone Number
-                    </label>
-                    <div className="relative">
-                      <Phone
-                        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                        size={18}
-                      />
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={newProxyData.phone}
-                        onChange={handleNewProxyChange}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/70"
-                        placeholder="+1 (555) 123-4567"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contact Information Note */}
-                <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
-                  <p className="text-sm text-blue-700">
-                    <strong>Note:</strong> Email and phone are optional. You can
-                    provide contact information in the additional contact field
-                    below.
-                  </p>
-                </div>
-
-                {/* Additional Contact Information */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
-                    Additional Contact Information
-                    <span className="text-gray-500 font-normal ml-1">
-                      (Optional)
-                    </span>
-                  </label>
-                  <div className="relative">
-                    <MessageSquare
-                      className="absolute left-3 top-3 text-gray-400"
-                      size={18}
-                    />
-                    <textarea
-                      name="contact"
-                      value={newProxyData.contact}
+                    <input
+                      type="text"
+                      name="fullName"
+                      value={newProxyData.fullName}
                       onChange={handleNewProxyChange}
-                      rows={2}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/70 resize-none"
-                      placeholder="Address, alternative contact methods, etc."
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Proxy's full name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Role *
+                    </label>
+                    <input
+                      type="text"
+                      name="role"
+                      value={newProxyData.role}
+                      onChange={handleNewProxyChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Local coordinator, representative, etc."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={newProxyData.email}
+                      onChange={handleNewProxyChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="proxy@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={newProxyData.phone}
+                      onChange={handleNewProxyChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="+1 (555) 123-4567"
                     />
                   </div>
                 </div>
 
-                {/* Description */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-semibold text-gray-700">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    Contact Information
+                  </label>
+                  <textarea
+                    name="contact"
+                    value={newProxyData.contact}
+                    onChange={handleNewProxyChange}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                    placeholder="Address, alternative contact methods, etc."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
                     Description
-                    <span className="text-gray-500 font-normal ml-1">
-                      (Optional)
-                    </span>
                   </label>
                   <textarea
                     name="description"
                     value={newProxyData.description}
                     onChange={handleNewProxyChange}
                     rows={2}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/70 resize-none"
-                    placeholder="Additional information about the proxy"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                    placeholder="Additional details about the proxy's role or background..."
                   />
                 </div>
               </div>
             </div>
           )}
-        </div>
-
-        <div className="bg-white/60 p-4 rounded-xl border border-purple-200">
-          <p className="text-sm text-purple-700 font-medium mb-2">
-            🤝 About Proxies/Middlemen
-          </p>
-          <p className="text-sm text-gray-600">
-            Select a priest, community leader, or other trusted intermediary if
-            the sponsor prefers to work through someone. This helps with local
-            coordination and communication.
-          </p>
         </div>
       </div>
     </div>

@@ -1,31 +1,72 @@
-// Fixed proxies API routes with proper TypeScript handling
+// Enhanced backend/src/routes/proxies.ts
 import express from 'express';
 import { prisma } from '../lib/db'; 
+
 const router = express.Router();
 
-// GET all proxies
+// GET all proxies with pagination and search
 router.get('/', async (req, res) => {
   try {
-    const proxies = await prisma.proxy.findMany({
-      include: {
-        sponsors: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            phone: true,
-            contact: true
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const search = req.query.search as string || '';
+
+    const skip = (page - 1) * limit;
+
+    // Build where clause for search
+    const where: any = {};
+    
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { role: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+        { contact: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+
+    const [proxies, totalCount] = await Promise.all([
+      prisma.proxy.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          sponsors: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              phone: true,
+              contact: true
+            }
+          },
+          _count: {
+            select: { sponsors: true }
           }
         },
-        _count: {
-          select: { sponsors: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+        orderBy: { fullName: 'asc' }
+      }),
+      prisma.proxy.count({ where })
+    ]);
 
-    res.json(proxies);
-  } catch (error: unknown) {
+    const totalPages = Math.ceil(totalCount / limit);
+
+    res.json({
+      data: proxies,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalCount,
+        limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+        startIndex: skip + 1,
+        endIndex: Math.min(skip + limit, totalCount)
+      }
+    });
+  } catch (error) {
     console.error('Error fetching proxies:', error);
     res.status(500).json({ error: 'Failed to fetch proxies' });
   }
@@ -46,7 +87,6 @@ router.get('/:id', async (req, res) => {
             email: true,
             phone: true,
             contact: true,
-            createdAt: true,
             sponsorships: {
               where: { isActive: true },
               include: {
@@ -59,8 +99,10 @@ router.get('/:id', async (req, res) => {
                 }
               }
             }
-          },
-          orderBy: { createdAt: 'desc' }
+          }
+        },
+        _count: {
+          select: { sponsors: true }
         }
       }
     });
@@ -70,7 +112,7 @@ router.get('/:id', async (req, res) => {
     }
 
     res.json(proxy);
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('Error fetching proxy:', error);
     res.status(500).json({ error: 'Failed to fetch proxy' });
   }
@@ -98,11 +140,10 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Check if proxy with same name already exists
+    // Check if fullName already exists
     const existingProxy = await prisma.proxy.findUnique({
       where: { fullName: fullName.trim() }
     });
-
     if (existingProxy) {
       return res.status(400).json({ 
         error: 'A proxy with this name already exists' 
@@ -114,7 +155,6 @@ router.post('/', async (req, res) => {
       fullName: fullName.trim(),
       role: role.trim(),
       contact: contact?.trim() || '',
-      description: description?.trim() || null
     };
 
     if (email?.trim()) {
@@ -125,9 +165,22 @@ router.post('/', async (req, res) => {
       proxyData.phone = phone.trim();
     }
 
+    if (description?.trim()) {
+      proxyData.description = description.trim();
+    }
+
     const proxy = await prisma.proxy.create({
       data: proxyData,
       include: {
+        sponsors: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            contact: true
+          }
+        },
         _count: {
           select: { sponsors: true }
         }
@@ -273,7 +326,7 @@ router.delete('/:id', async (req, res) => {
     // Check if proxy has associated sponsors
     if (existingProxy.sponsors.length > 0) {
       return res.status(400).json({ 
-        error: 'Cannot delete proxy with associated sponsors. Remove proxy from sponsors first.' 
+        error: 'Cannot delete proxy with associated sponsors. Remove proxy from sponsors first.'
       });
     }
 
@@ -282,50 +335,9 @@ router.delete('/:id', async (req, res) => {
     });
 
     res.json({ message: 'Proxy deleted successfully' });
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('Error deleting proxy:', error);
     res.status(500).json({ error: 'Failed to delete proxy' });
-  }
-});
-
-// GET proxies with search functionality
-router.get('/search/:query', async (req, res) => {
-  try {
-    const { query } = req.params;
-    const searchTerm = query.toLowerCase();
-
-    const proxies = await prisma.proxy.findMany({
-      where: {
-        OR: [
-          { fullName: { contains: searchTerm } },
-          { email: { contains: searchTerm } },
-          { phone: { contains: searchTerm } },
-          { contact: { contains: searchTerm } },
-          { role: { contains: searchTerm } },
-          { description: { contains: searchTerm } }
-        ]
-      },
-      include: {
-        sponsors: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            phone: true,
-            contact: true
-          }
-        },
-        _count: {
-          select: { sponsors: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    res.json(proxies);
-  } catch (error: unknown) {
-    console.error('Error searching proxies:', error);
-    res.status(500).json({ error: 'Failed to search proxies' });
   }
 });
 
