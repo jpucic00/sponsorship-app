@@ -160,7 +160,7 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
             endIndex: 1,
           }
         );
-        setProxies(proxiesData);
+        setProxies(Array.isArray(proxiesData) ? proxiesData : []);
       } catch (error) {
         console.error("❌ Error fetching sponsors:", error);
         // Don't clear sponsors on error to avoid UI flashing
@@ -401,7 +401,8 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
                         Proxy:{" "}
                         {filterProxy === "none"
                           ? "No Proxy"
-                          : proxies.find((p) => p.id.toString() === filterProxy)
+                          : proxies &&
+                            proxies.find((p) => p.id.toString() === filterProxy)
                               ?.fullName}
                       </span>
                     )}

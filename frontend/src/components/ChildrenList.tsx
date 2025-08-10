@@ -170,7 +170,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
         );
         setSchools(schoolsData);
         setSponsors(sponsorsData.data || sponsorsData);
-        setProxies(proxiesData);
+        setProxies(Array.isArray(proxiesData) ? proxiesData : []);
       } catch (error) {
         console.error("Error fetching data:", error);
         // Set empty state on error
