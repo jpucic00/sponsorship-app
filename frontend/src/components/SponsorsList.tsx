@@ -282,17 +282,6 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
       <div className="max-w-7xl mx-auto px-4 space-y-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-4">
-            Sponsors Directory
-          </h1>
-          <p className="text-gray-600 text-xl">
-            {pagination.totalCount} sponsors found
-            {searchTerm && ` for "${searchTerm}"`}
-          </p>
-        </div>
-
         {/* Search and Filters */}
         <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
           <div className="flex flex-col lg:flex-row items-center justify-between space-y-4 lg:space-y-0 lg:space-x-6">
