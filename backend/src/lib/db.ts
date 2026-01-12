@@ -4,15 +4,20 @@ import { PrismaLibSQL } from '@prisma/adapter-libsql';
 let prismaInstance: PrismaClient | null = null;
 
 function createPrismaClient() {
+  // Use dynamic property access to avoid Railpack static analysis
+  const env = process.env;
+  const dbUrlKey = 'TURSO_DATABASE_URL';
+  const authTokenKey = 'TURSO_AUTH_TOKEN';
+
   // Debug: Log all environment variables that start with TURSO
   console.log('🔍 Debug - Environment variables:');
-  console.log('TURSO_DATABASE_URL exists:', !!process.env.TURSO_DATABASE_URL);
-  console.log('TURSO_AUTH_TOKEN exists:', !!process.env.TURSO_AUTH_TOKEN);
-  console.log('All TURSO vars:', Object.keys(process.env).filter(k => k.includes('TURSO')));
+  console.log('TURSO_DATABASE_URL exists:', !!env[dbUrlKey]);
+  console.log('TURSO_AUTH_TOKEN exists:', !!env[authTokenKey]);
+  console.log('All TURSO vars:', Object.keys(env).filter(k => k.includes('TURSO')));
 
   // Validate required environment variables
-  const databaseUrl = process.env.TURSO_DATABASE_URL?.trim().replace(/=/g, '');
-  const authToken = process.env.TURSO_AUTH_TOKEN?.trim().replace(/=/g, '');
+  const databaseUrl = env[dbUrlKey]?.trim().replace(/=/g, '');
+  const authToken = env[authTokenKey]?.trim().replace(/=/g, '');
 
   if (!databaseUrl) {
     console.error('❌ TURSO_DATABASE_URL is missing or empty');
