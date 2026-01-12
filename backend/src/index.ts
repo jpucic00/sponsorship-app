@@ -1,10 +1,14 @@
+import dotenv from 'dotenv';
+
+// Load environment variables FIRST, before any other imports that might use them
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
 import path from 'path';
-import { prisma } from './lib/db'; 
+import { prisma } from './lib/db';
 
 // Import route modules
 import childrenRoutes from './routes/children';
@@ -14,8 +18,6 @@ import volunteersRoutes from './routes/volunteers';
 import schoolsRoutes from './routes/schools';
 import proxiesRoutes from './routes/proxies';
 import childPhotosRoutes from './routes/child-photos';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
