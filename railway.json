@@ -1,9 +1,10 @@
 {
   "build": {
-    "builder": "RAILPACK"
+    "builder": "RAILPACK",
+    "buildCommand": "cd backend && npm install && npm run build && cd ../frontend && npm install && npm run build"
   },
   "deploy": {
-    "startCommand": "npm run start:prod",
+    "startCommand": "cd backend && NODE_ENV=production node dist/index.js",
     "healthcheckPath": "/api/health"
   }
 }
