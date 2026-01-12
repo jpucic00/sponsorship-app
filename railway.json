@@ -1,7 +1,4 @@
 {
-  "build": {
-    "builder": "RAILPACK"
-  },
   "deploy": {
     "startCommand": "npm run start:prod",
     "healthcheckPath": "/api/health"
