@@ -8,6 +8,25 @@ datasource db {
   url      = "file:./dev.db" // will be ignored
 }
 
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  password     String   // Hashed password
+  fullName     String
+  email        String?  // Optional email
+  role         String   @default("user") // user, admin
+  isApproved   Boolean  @default(false)  // Manual approval by admin
+  isActive     Boolean  @default(true)   // Can be deactivated later
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastLoginAt  DateTime?
+
+  @@index([username])
+  @@index([isApproved])
+  @@index([isActive])
+  @@map("users")
+}
+
 model Child {
   id                    Int      @id @default(autoincrement())
   firstName             String
@@ -183,23 +202,3 @@ model Sponsorship {
   @@map("sponsorships")
 }
 
-model Volunteer {
-  id        Int      @id @default(autoincrement())
-  firstName String
-  lastName  String
-  email     String   @unique
-  phone     String?
-  role      String   @default("volunteer")
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  // Performance Indexes
-  @@index([isActive])               // Filter active volunteers
-  @@index([role])                   // Filter by role
-  @@index([lastName, firstName])    // Name searches
-  @@index([createdAt])              // Recent volunteers
-  @@index([role, isActive])         // Active volunteers by role
-  
-  @@map("volunteers")
-}

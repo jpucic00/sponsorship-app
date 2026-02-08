@@ -1,30 +1,40 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSQL } from '@prisma/adapter-libsql';
 
-// Validate required environment variables
-const databaseUrl = process.env.TURSO_DATABASE_URL?.trim().replace(/=/g, '');
-const authToken = process.env.TURSO_AUTH_TOKEN?.trim().replace(/=/g, '');
+const isProduction = process.env.NODE_ENV === 'production';
 
-if (!databaseUrl) {
-  throw new Error('TURSO_DATABASE_URL environment variable is required but not set');
+let prisma: PrismaClient;
+
+if (isProduction) {
+  // Production: Use Turso
+  const databaseUrl = process.env.TURSO_DATABASE_URL?.trim().replace(/=/g, '');
+  const authToken = process.env.TURSO_AUTH_TOKEN?.trim().replace(/=/g, '');
+
+  if (!databaseUrl) {
+    throw new Error('TURSO_DATABASE_URL environment variable is required in production');
+  }
+
+  if (!authToken) {
+    throw new Error('TURSO_AUTH_TOKEN environment variable is required in production');
+  }
+
+  console.log('🔌 Connecting to Turso database:', databaseUrl.substring(0, 30) + '...');
+
+  const adapter = new PrismaLibSQL({
+    url: databaseUrl,
+    authToken: authToken,
+  });
+
+  prisma = new PrismaClient({ adapter });
+} else {
+  // Development: Use local SQLite
+  console.log('🔌 Connecting to local SQLite database (development mode)');
+  prisma = new PrismaClient();
 }
 
-if (!authToken) {
-  throw new Error('TURSO_AUTH_TOKEN environment variable is required but not set');
-}
+export { prisma };
 
-console.log('🔌 Connecting to Turso database:', databaseUrl.substring(0, 30) + '...');
-
-// Create adapter once
-const adapter = new PrismaLibSQL({
-  url: databaseUrl,
-  authToken: authToken,
-});
-
-// Create Prisma client once
-export const prisma = new PrismaClient({ adapter });
-
-// Optional: Handle graceful shutdown
+// Handle graceful shutdown
 process.on('beforeExit', async () => {
   await prisma.$disconnect();
 });

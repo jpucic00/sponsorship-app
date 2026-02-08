@@ -26,7 +26,6 @@ interface DashboardData {
     totalChildren: number;
     totalSponsors: number;
     totalSchools: number;
-    totalVolunteers: number;
     totalProxies: number;
     sponsoredChildren: number;
     unsponsoredChildren: number;

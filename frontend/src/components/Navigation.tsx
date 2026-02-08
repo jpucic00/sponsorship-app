@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -9,12 +9,21 @@ import {
   FileUp,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
 import { LogoIcon } from "./LogoIcon";
+import { useAuth } from "../contexts/AuthContext";
 
 export const Navigation: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -68,6 +77,20 @@ export const Navigation: React.FC = () => {
                     </Link>
                   );
                 })}
+
+                {/* User info and Logout */}
+                <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-white/20">
+                  <span className="text-sm text-blue-100">
+                    {user?.fullName || user?.username}
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium text-blue-100 hover:bg-white/10 hover:text-white transition-all duration-200"
+                  >
+                    <LogOut size={18} />
+                    <span>Logout</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -107,6 +130,23 @@ export const Navigation: React.FC = () => {
                   </Link>
                 );
               })}
+
+              {/* Mobile User Info and Logout */}
+              <div className="pt-2 mt-2 border-t border-white/20">
+                <div className="px-4 py-2 text-sm text-blue-100">
+                  {user?.fullName || user?.username}
+                </div>
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-blue-100 hover:bg-white/10 hover:text-white transition-all duration-200"
+                >
+                  <LogOut size={20} />
+                  <span>Logout</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

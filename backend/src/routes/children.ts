@@ -1,7 +1,11 @@
 import express from 'express';
-import { prisma } from '../lib/db'; 
+import { prisma } from '../lib/db';
+import { isAuthenticated } from '../middleware/auth';
 
 const router = express.Router();
+
+// All children routes require authentication
+router.use(isAuthenticated);
 
 // Helper function to process child data for response
 const processChildForResponse = async (child: any, includeProfilePhoto = false) => {
@@ -459,11 +463,10 @@ router.get('/statistics', async (req, res) => {
 router.get('/dashboard-statistics', async (req, res) => {
   try {
     // Basic counts
-    const [totalChildren, totalSponsors, totalSchools, totalVolunteers, totalProxies] = await Promise.all([
+    const [totalChildren, totalSponsors, totalSchools, totalProxies] = await Promise.all([
       prisma.child.count(),
       prisma.sponsor.count(),
       prisma.school.count({ where: { isActive: true } }),
-      prisma.volunteer.count({ where: { isActive: true } }),
       prisma.proxy.count()
     ]);
 
@@ -729,7 +732,6 @@ router.get('/dashboard-statistics', async (req, res) => {
         totalChildren,
         totalSponsors,
         totalSchools,
-        totalVolunteers,
         totalProxies,
         sponsoredChildren,
         unsponsoredChildren,

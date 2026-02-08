@@ -1,9 +1,13 @@
 // FIXED backend/src/routes/sponsors.ts - SQLite/Turso compatible version
 
 import express from 'express';
-import { prisma } from '../lib/db'; 
+import { prisma } from '../lib/db';
+import { isAuthenticated } from '../middleware/auth';
 
 const router = express.Router();
+
+// All sponsor routes require authentication
+router.use(isAuthenticated);
 
 // GET all sponsors with pagination and search - FIXED VERSION
 router.get('/', async (req, res) => {

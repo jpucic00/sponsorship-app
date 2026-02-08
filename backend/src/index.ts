@@ -4,17 +4,20 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
+import session from 'express-session';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
 import { prisma } from './lib/db';
+import passport from './config/passport';
+import { migrate } from './migrations';
 
 // Import route modules
+import authRoutes from './routes/auth';
 import childrenRoutes from './routes/children';
 import sponsorsRoutes from './routes/sponsors';
 import sponsorshipsRoutes from './routes/sponsorships';
-import volunteersRoutes from './routes/volunteers';
 import schoolsRoutes from './routes/schools';
 import proxiesRoutes from './routes/proxies';
 import childPhotosRoutes from './routes/child-photos';
@@ -43,11 +46,30 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+// Session configuration
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'your-secret-key-change-this',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+      httpOnly: true,
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      sameSite: 'lax',
+    },
+  })
+);
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
 // API Routes - MUST come before static file serving
+app.use('/api/auth', authRoutes);
 app.use('/api/children', childrenRoutes);
 app.use('/api/sponsors', sponsorsRoutes);
 app.use('/api/sponsorships', sponsorshipsRoutes);
-app.use('/api/volunteers', volunteersRoutes);
 app.use('/api/schools', schoolsRoutes);
 app.use('/api/proxies', proxiesRoutes);
 app.use('/api/child-photos', childPhotosRoutes);
@@ -107,13 +129,27 @@ app.use((err: any, req: any, res: any, next: any) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  if (process.env.NODE_ENV === 'production') {
-    console.log('✅ Production mode: serving static files and API');
+// Start server with migrations
+async function startServer() {
+  try {
+    // Run database migrations before starting
+    console.log('📦 Checking database migrations...');
+    await migrate();
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      if (process.env.NODE_ENV === 'production') {
+        console.log('✅ Production mode: serving static files and API');
+      }
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
   }
-});
+}
+
+startServer();
 
 // Graceful shutdown
 process.on('SIGINT', async () => {

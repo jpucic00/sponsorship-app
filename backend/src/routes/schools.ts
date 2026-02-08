@@ -1,7 +1,11 @@
 import express from 'express';
-import { prisma } from '../lib/db'; 
+import { prisma } from '../lib/db';
+import { isAuthenticated } from '../middleware/auth';
 
 const router = express.Router();
+
+// Require authentication for all routes
+router.use(isAuthenticated);
 
 // GET all schools
 router.get('/', async (req, res) => {
