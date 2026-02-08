@@ -201,7 +201,7 @@ export function Register() {
             <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
               <p className="text-xs text-blue-800">
                 <strong>Note:</strong> Your account will require admin approval before you can log in.
-                You'll receive confirmation once approved.
+                Please try logging in again after an admin has approved your account.
               </p>
             </div>
 
