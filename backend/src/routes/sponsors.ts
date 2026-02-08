@@ -90,7 +90,10 @@ router.get('/', async (req, res) => {
             }
           },
           sponsorships: {
-            where: { isActive: true },
+            where: {
+              isActive: true,
+              child: { isArchived: false }
+            },
             include: {
               child: {
                 select: {
@@ -175,6 +178,9 @@ router.get('/:id', async (req, res) => {
           }
         },
         sponsorships: {
+          where: {
+            child: { isArchived: false }
+          },
           include: {
             child: {
               select: {

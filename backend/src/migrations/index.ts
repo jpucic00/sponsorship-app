@@ -4,12 +4,14 @@ import { Migration, runMigrations, rollbackMigration, getMigrationStatus } from 
 import { migration as m001 } from './001_add_users_table';
 import { migration as m002 } from './002_remove_volunteers_table';
 import { migration as m003 } from './003_seed_schools';
+import { migration as m004 } from './004_add_child_archive_fields';
 
 // Register all migrations in order
 export const migrations: Migration[] = [
   m001,
   m002,
   m003,
+  m004,
 ];
 
 // Run all pending migrations

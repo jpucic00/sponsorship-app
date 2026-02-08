@@ -6,6 +6,9 @@ import {
   Camera,
   Clock,
   Eye,
+  Archive,
+  RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
 
@@ -45,12 +48,20 @@ interface ChildrenCardsMobileProps {
   children: Child[];
   onViewChild: (childId: number) => void;
   calculateAge: (dateOfBirth: string) => number;
+  isArchiveView?: boolean;
+  onArchive?: (childId: number, childName: string) => void;
+  onRestore?: (childId: number, childName: string) => void;
+  onPermanentDelete?: (childId: number, childName: string) => void;
 }
 
 export const ChildrenCardsMobile: React.FC<ChildrenCardsMobileProps> = ({
   children,
   onViewChild,
   calculateAge,
+  isArchiveView = false,
+  onArchive,
+  onRestore,
+  onPermanentDelete,
 }) => {
   // Function to get image source for a child
   const getImageSrc = (child: Child) => {
@@ -196,7 +207,7 @@ export const ChildrenCardsMobile: React.FC<ChildrenCardsMobileProps> = ({
           </div>
 
           {/* Actions - Simple Buttons */}
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 flex-wrap gap-2">
             <button
               onClick={() => onViewChild(child.id)}
               className="flex-1 flex items-center justify-center space-x-1
@@ -211,7 +222,7 @@ export const ChildrenCardsMobile: React.FC<ChildrenCardsMobileProps> = ({
               <span>View</span>
             </button>
 
-            {!child.isSponsored && (
+            {!isArchiveView && !child.isSponsored && (
               <button
                 className="flex-1 flex items-center justify-center space-x-1
                            px-3 py-2 text-sm
@@ -223,6 +234,66 @@ export const ChildrenCardsMobile: React.FC<ChildrenCardsMobileProps> = ({
               >
                 <Heart size={14} />
                 <span>Find Sponsor</span>
+              </button>
+            )}
+
+            {!isArchiveView && onArchive && (
+              <button
+                onClick={() =>
+                  onArchive(child.id, `${child.firstName} ${child.lastName}`)
+                }
+                className="flex-1 flex items-center justify-center space-x-1
+                           px-3 py-2 text-sm
+                           bg-orange-100 hover:bg-orange-200
+                           text-orange-700 hover:text-orange-800
+                           font-medium
+                           rounded-md
+                           transition-colors duration-200"
+                title="Archive child"
+              >
+                <Archive size={14} />
+                <span>Archive</span>
+              </button>
+            )}
+
+            {isArchiveView && onRestore && (
+              <button
+                onClick={() =>
+                  onRestore(child.id, `${child.firstName} ${child.lastName}`)
+                }
+                className="flex-1 flex items-center justify-center space-x-1
+                           px-3 py-2 text-sm
+                           bg-green-100 hover:bg-green-200
+                           text-green-700 hover:text-green-800
+                           font-medium
+                           rounded-md
+                           transition-colors duration-200"
+                title="Restore child"
+              >
+                <RotateCcw size={14} />
+                <span>Restore</span>
+              </button>
+            )}
+
+            {isArchiveView && onPermanentDelete && (
+              <button
+                onClick={() =>
+                  onPermanentDelete(
+                    child.id,
+                    `${child.firstName} ${child.lastName}`
+                  )
+                }
+                className="flex-1 flex items-center justify-center space-x-1
+                           px-3 py-2 text-sm
+                           bg-red-100 hover:bg-red-200
+                           text-red-700 hover:text-red-800
+                           font-medium
+                           rounded-md
+                           transition-colors duration-200"
+                title="Permanently delete"
+              >
+                <Trash2 size={14} />
+                <span>Delete</span>
               </button>
             )}
           </div>

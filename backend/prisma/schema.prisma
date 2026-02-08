@@ -56,6 +56,8 @@ model Child {
   
   // System fields
   isSponsored           Boolean  @default(false)
+  isArchived            Boolean  @default(false)
+  archivedAt            String?   // ISO string to avoid libsql DateTime serialization issues
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   
@@ -76,7 +78,9 @@ model Child {
   @@index([isSponsored, dateEnteredRegister])   // Unsponsored children by date
   @@index([createdAt])                          // Recent additions
   @@index([lastProfileUpdate])                  // Recently updated profiles
-  
+  @@index([isArchived])                         // Filter by archive status
+  @@index([isArchived, isSponsored])            // Combined archive + sponsorship filter
+
   @@map("children")
 }
 

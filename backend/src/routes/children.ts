@@ -67,6 +67,10 @@ router.get('/', async (req, res) => {
     // Build where clause based on filters
     const where: any = {};
 
+    // Archive filter - by default only show non-archived children
+    const showArchived = req.query.archived === 'true';
+    where.isArchived = showArchived;
+
     // Search filter - SQLite doesn't support case-insensitive mode
     if (search && search.length > 0) {
       console.log('Adding search filter for:', search);
@@ -256,6 +260,9 @@ router.get('/statistics', async (req, res) => {
 
     // Build where clause based on filters (same logic as main route)
     const where: any = {};
+
+    // Always exclude archived children from statistics
+    where.isArchived = false;
 
     // Search filter
     if (search) {
@@ -462,30 +469,32 @@ router.get('/statistics', async (req, res) => {
 // GET dashboard statistics endpoint
 router.get('/dashboard-statistics', async (req, res) => {
   try {
-    // Basic counts
+    // Basic counts (exclude archived children)
     const [totalChildren, totalSponsors, totalSchools, totalProxies] = await Promise.all([
-      prisma.child.count(),
+      prisma.child.count({ where: { isArchived: false } }),
       prisma.sponsor.count(),
       prisma.school.count({ where: { isActive: true } }),
       prisma.proxy.count()
     ]);
 
-    // Sponsorship statistics
+    // Sponsorship statistics (exclude archived children)
     const [sponsoredChildren, activeSponsorships, totalSponsorships] = await Promise.all([
       prisma.child.count({
         where: {
+          isArchived: false,
           sponsorships: { some: { isActive: true } }
         }
       }),
-      prisma.sponsorship.count({ where: { isActive: true } }),
-      prisma.sponsorship.count()
+      prisma.sponsorship.count({ where: { isActive: true, child: { isArchived: false } } }),
+      prisma.sponsorship.count({ where: { child: { isArchived: false } } })
     ]);
 
     const unsponsoredChildren = totalChildren - sponsoredChildren;
     const sponsorshipRate = totalChildren > 0 ? Math.round((sponsoredChildren / totalChildren) * 100) : 0;
 
-    // Age distribution (calculate from dateOfBirth)
+    // Age distribution (calculate from dateOfBirth, exclude archived)
     const childrenWithAges = await prisma.child.findMany({
+      where: { isArchived: false },
       select: { dateOfBirth: true, isSponsored: true }
     });
 
@@ -515,11 +524,11 @@ router.get('/dashboard-statistics', async (req, res) => {
       return acc;
     }, {} as Record<string, { total: number; sponsored: number }>);
 
-    // Education level distribution
+    // Education level distribution (exclude archived)
     const classDistribution = await prisma.child.groupBy({
       by: ['class'],
       _count: { class: true },
-      where: {}
+      where: { isArchived: false }
     });
 
     // Group classes into education levels
@@ -536,9 +545,10 @@ router.get('/dashboard-statistics', async (req, res) => {
       return acc;
     }, {} as Record<string, number>);
 
-    // Gender distribution with sponsorship breakdown
+    // Gender distribution with sponsorship breakdown (exclude archived)
     const genderStats = await prisma.child.groupBy({
       by: ['gender'],
+      where: { isArchived: false },
       _count: { gender: true }
     });
 
@@ -559,11 +569,12 @@ router.get('/dashboard-statistics', async (req, res) => {
       })
     );
 
-    // School statistics with performance metrics
+    // School statistics with performance metrics (exclude archived children)
     const schoolStats = await prisma.school.findMany({
       where: { isActive: true },
       include: {
         children: {
+          where: { isArchived: false },
           include: {
             sponsorships: {
               where: { isActive: true }
@@ -602,6 +613,7 @@ router.get('/dashboard-statistics', async (req, res) => {
       const [newChildren, newSponsors, newSponsorships] = await Promise.all([
         prisma.child.count({
           where: {
+            isArchived: false,
             createdAt: {
               gte: date,
               lt: nextMonth
@@ -640,6 +652,7 @@ router.get('/dashboard-statistics', async (req, res) => {
     const [recentChildren, recentSponsors, recentSponsorships] = await Promise.all([
       prisma.child.findMany({
         where: {
+          isArchived: false,
           createdAt: { gte: thirtyDaysAgo }
         },
         include: { school: true },
@@ -1118,6 +1131,148 @@ router.delete('/:id/sponsors/:sponsorId', async (req, res) => {
   } catch (error) {
     console.error('Error ending sponsorship:', error);
     res.status(500).json({ error: 'Failed to end sponsorship' });
+  }
+});
+
+// POST archive a child (soft delete)
+router.post('/:id/archive', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const child = await prisma.child.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!child) {
+      return res.status(404).json({ error: 'Child not found' });
+    }
+
+    if (child.isArchived) {
+      return res.status(400).json({ error: 'Child is already archived' });
+    }
+
+    const archivedChild = await prisma.child.update({
+      where: { id: parseInt(id) },
+      data: {
+        isArchived: true,
+        archivedAt: new Date().toISOString()
+      },
+      include: {
+        school: true,
+        sponsorships: {
+          where: { isActive: true },
+          include: {
+            sponsor: {
+              include: { proxy: true }
+            }
+          }
+        }
+      }
+    });
+
+    res.json({
+      message: `Child "${archivedChild.firstName} ${archivedChild.lastName}" has been archived`,
+      child: archivedChild
+    });
+  } catch (error) {
+    console.error('Error archiving child:', error);
+    res.status(500).json({ error: 'Failed to archive child' });
+  }
+});
+
+// POST restore an archived child
+router.post('/:id/restore', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const child = await prisma.child.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!child) {
+      return res.status(404).json({ error: 'Child not found' });
+    }
+
+    if (!child.isArchived) {
+      return res.status(400).json({ error: 'Child is not archived' });
+    }
+
+    const restoredChild = await prisma.child.update({
+      where: { id: parseInt(id) },
+      data: {
+        isArchived: false,
+        archivedAt: null
+      },
+      include: {
+        school: true,
+        sponsorships: {
+          where: { isActive: true },
+          include: {
+            sponsor: {
+              include: { proxy: true }
+            }
+          }
+        }
+      }
+    });
+
+    res.json({
+      message: `Child "${restoredChild.firstName} ${restoredChild.lastName}" has been restored`,
+      child: restoredChild
+    });
+  } catch (error) {
+    console.error('Error restoring child:', error);
+    res.status(500).json({ error: 'Failed to restore child' });
+  }
+});
+
+// DELETE permanently delete an archived child
+router.delete('/:id/permanent', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const child = await prisma.child.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        sponsorships: true,
+        photos: true
+      }
+    });
+
+    if (!child) {
+      return res.status(404).json({ error: 'Child not found' });
+    }
+
+    if (!child.isArchived) {
+      return res.status(400).json({
+        error: 'Only archived children can be permanently deleted. Archive the child first.'
+      });
+    }
+
+    // Use transaction to delete related records and child
+    await prisma.$transaction(async (tx) => {
+      // Delete all photos
+      await tx.childPhoto.deleteMany({
+        where: { childId: parseInt(id) }
+      });
+
+      // Delete all sponsorships (both active and inactive)
+      await tx.sponsorship.deleteMany({
+        where: { childId: parseInt(id) }
+      });
+
+      // Delete the child
+      await tx.child.delete({
+        where: { id: parseInt(id) }
+      });
+    });
+
+    res.json({
+      message: `Child "${child.firstName} ${child.lastName}" and all related data have been permanently deleted`
+    });
+  } catch (error) {
+    console.error('Error permanently deleting child:', error);
+    res.status(500).json({ error: 'Failed to permanently delete child' });
   }
 });
 
