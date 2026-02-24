@@ -10,7 +10,6 @@ import { NotificationToast } from "./components/NotificationToast";
 import { AppFooter } from "./components/AppFooter";
 import { ChildForm } from "./components/ChildForm";
 import { SponsorForm } from "./components/SponsorForm";
-import { ExcelImport } from "./components/ExcelImport";
 import { Dashboard } from "./components/Dashboard";
 import { ChildrenContainer } from "./components/ChildrenContainer";
 import { SponsorsContainer } from "./components/SponsorsContainer";
@@ -192,41 +191,6 @@ function ProtectedApp() {
     }
   };
 
-  const handleExcelImport = async (data: any[]) => {
-    try {
-      let successful = 0;
-      let failed = 0;
-
-      for (const row of data) {
-        try {
-          const response = await fetch("/api/children", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            credentials: "include",
-            body: JSON.stringify(row),
-          });
-
-          if (response.ok) {
-            successful++;
-          } else {
-            failed++;
-          }
-        } catch {
-          failed++;
-        }
-      }
-
-      showNotification(
-        `Import completed! ✨ ${successful} successful, ${failed} failed`
-      );
-    } catch (error) {
-      console.error("Error importing data:", error);
-      showNotification("Error importing data. Please try again.");
-    }
-  };
-
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       <Navigation />
@@ -264,16 +228,6 @@ function ProtectedApp() {
               ) : (
                 <SponsorForm onSubmit={handleSponsorSubmit} proxies={proxies} />
               )
-            }
-          />
-          <Route
-            path="/import"
-            element={
-              <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
-                <div className="max-w-4xl mx-auto px-4">
-                  <ExcelImport onImport={handleExcelImport} />
-                </div>
-              </div>
             }
           />
         </Routes>
