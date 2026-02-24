@@ -381,7 +381,7 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-4 sm:py-8">
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
@@ -393,7 +393,7 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
 
   if (!sponsor) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-4 sm:py-8">
         <div className="max-w-4xl mx-auto px-4 text-center py-20">
           <p className="text-gray-600 text-lg mb-4">Sponsor not found</p>
           <button
@@ -412,7 +412,7 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
     sponsor.sponsorships?.filter((s) => !s.isActive) || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-4 sm:py-8">
       <div className="max-w-6xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
@@ -447,7 +447,7 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
           {/* Left Column - Sponsor Details */}
           <div className="space-y-6">
             {/* Main Sponsor Information */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
               <div className="flex items-center space-x-3 mb-6">
                 <Users className="text-green-600" size={28} />
                 <h2 className="text-2xl font-bold text-gray-900">
@@ -505,7 +505,7 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
             </div>
 
             {/* Proxy Assignment */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
                   <Link2 className="text-purple-600" size={28} />
@@ -662,7 +662,7 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
           {/* Right Column - Sponsorships */}
           <div className="space-y-6">
             {/* Registration & Update Information */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
               <div className="flex items-center space-x-3 mb-6">
                 <Clock className="text-blue-600" size={28} />
                 <h2 className="text-2xl font-bold text-gray-900">
@@ -756,7 +756,7 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
             </div>
 
             {/* Active Sponsorships */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
               <div className="flex items-center space-x-3 mb-6">
                 <UserCheck className="text-green-600" size={28} />
                 <h2 className="text-2xl font-bold text-gray-900">
@@ -817,7 +817,7 @@ export const SponsorDetails: React.FC<SponsorDetailsProps> = ({
 
             {/* Inactive Sponsorships */}
             {inactiveSponsors.length > 0 && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+              <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
                 <div className="flex items-center space-x-3 mb-6">
                   <Clock className="text-gray-600" size={28} />
                   <h2 className="text-2xl font-bold text-gray-900">

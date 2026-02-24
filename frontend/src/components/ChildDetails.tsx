@@ -413,7 +413,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-4 sm:py-8">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-center py-32">
             <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
@@ -425,7 +425,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
 
   if (!child) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-4 sm:py-8">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center py-32">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -450,7 +450,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
   }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-4 sm:py-8">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
@@ -462,12 +462,12 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
             <span>Back to Children</span>
           </button>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-6">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-4 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start space-x-3 sm:space-x-6 min-w-0">
                 {/* Profile Picture */}
                 <div className="flex-shrink-0">
-                  <div className="w-24 h-24 md:w-32 md:h-32 rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-gray-100">
+                  <div className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-gray-100">
                     {child.photoDataUrl || child.photoBase64 ? (
                       <img
                         src={
@@ -495,30 +495,30 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
                 </div>
 
                 {/* Child Information */}
-                <div className="flex-1">
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-2 truncate">
                     {child.firstName} {child.lastName}
                   </h1>
-                  <div className="flex items-center space-x-4 text-gray-600">
-                    <div className="flex items-center space-x-2">
-                      <Calendar size={16} />
-                      <span>{formatDate(child.dateOfBirth)}</span>
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1.5 sm:gap-3 text-sm text-gray-600">
+                    <div className="flex items-center space-x-1.5">
+                      <Calendar size={14} className="flex-shrink-0" />
+                      <span className="truncate">{formatDate(child.dateOfBirth)}</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <GraduationCap size={16} />
+                    <div className="flex items-center space-x-1.5">
+                      <GraduationCap size={14} className="flex-shrink-0" />
                       <span>Class {child.class}</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <MapPin size={16} />
-                      <span>{child.school.name}</span>
+                    <div className="flex items-center space-x-1.5">
+                      <MapPin size={14} className="flex-shrink-0" />
+                      <span className="truncate">{child.school.name}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3">
+              <div className="flex items-start flex-shrink-0">
                 <div
-                  className={`px-4 py-2 rounded-full text-sm font-medium ${
+                  className={`px-2.5 py-1 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap ${
                     child.isSponsored
                       ? "bg-green-100 text-green-800"
                       : "bg-red-100 text-red-800"
@@ -535,7 +535,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Basic Information - Editable */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
               <div className="flex items-center space-x-3 mb-6">
                 <User className="text-blue-600" size={28} />
                 <h2 className="text-2xl font-bold text-gray-900">
@@ -617,7 +617,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
             </div>
 
             {/* Sponsorship Information */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
                   <Heart className="text-red-500" size={28} />
@@ -1303,7 +1303,7 @@ export const ChildDetails: React.FC<ChildDetailsProps> = ({
             </div>
 
             {/* Family Information - Editable */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
               <div className="flex items-center space-x-3 mb-6">
                 <Users className="text-green-600" size={28} />
                 <h2 className="text-2xl font-bold text-gray-900">

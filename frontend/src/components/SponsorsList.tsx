@@ -280,40 +280,37 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
-      <div className="max-w-7xl mx-auto px-4 space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-4 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 space-y-4 sm:space-y-8">
         {/* Search and Filters */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-          <div className="flex flex-col lg:flex-row items-center justify-between space-y-4 lg:space-y-0 lg:space-x-6">
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 lg:gap-0 lg:space-x-6">
             {/* Search Bar */}
-            <div className="flex-1 relative max-w-2xl">
-              <Search
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={24}
-              />
+            <div className="w-full lg:flex-1 flex items-center gap-2 bg-white border border-gray-300 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-green-500 focus-within:border-transparent transition-all">
+              <Search size={16} className="text-gray-400 flex-shrink-0" />
               <input
                 type="text"
                 placeholder="Search by name, contact, or proxy..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 bg-white/70 text-lg"
+                className="flex-1 text-sm outline-none bg-transparent text-gray-900 placeholder-gray-400 min-w-0"
               />
             </div>
 
             {/* Filter Toggle and Add Button */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
                   showFilters || hasActiveFilters
                     ? "bg-green-600 text-white shadow-lg"
                     : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
                 }`}
               >
-                <Filter size={20} />
-                <span>Filters</span>
+                <Filter size={16} />
+                <span className="hidden sm:inline">Filters</span>
                 {hasActiveFilters && (
-                  <span className="bg-white/20 text-xs px-2 py-1 rounded-full">
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${showFilters || hasActiveFilters ? "bg-white/20 text-white" : "bg-green-100 text-green-700"}`}>
                     {getActiveFilterCount()}
                   </span>
                 )}
@@ -321,10 +318,10 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
 
               <Link
                 to="/register-sponsor"
-                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition-colors shadow-sm flex-shrink-0"
               >
-                <Plus size={20} />
-                <span>Add New Sponsor</span>
+                <Plus size={16} />
+                <span className="hidden sm:inline whitespace-nowrap">Add Sponsor</span>
               </Link>
             </div>
           </div>
@@ -552,58 +549,77 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
               </div>
 
               {/* Mobile Card View */}
-              <div className="lg:hidden space-y-4 p-6">
+              <div className="lg:hidden space-y-3 p-3 sm:p-4">
                 {sponsors.map((sponsor) => (
                   <div
                     key={sponsor.id}
-                    className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100"
+                    className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4"
                   >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                          {sponsor.fullName.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-gray-900 text-lg">
-                            {sponsor.fullName}
-                          </h4>
-                          <p className="text-gray-600 flex items-center">
-                            <Phone size={14} className="mr-1" />
-                            {sponsor.contact}
-                          </p>
-                        </div>
+                    {/* Header row: avatar + name + badge */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                        {sponsor.fullName.charAt(0).toUpperCase()}
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-gray-900 truncate">
+                          {sponsor.fullName}
+                        </h4>
+                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                          <Phone size={12} className="flex-shrink-0" />
+                          <span className="truncate">{sponsor.contact}</span>
+                        </p>
+                      </div>
+                      <span className={`flex-shrink-0 px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${
+                        sponsor.sponsorships.length > 0
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}>
+                        {sponsor.sponsorships.length > 0
+                          ? `${sponsor.sponsorships.length} active`
+                          : "Available"}
+                      </span>
                     </div>
 
-                    {sponsor.proxy && (
-                      <div className="mb-3">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                          Via: {sponsor.proxy.fullName} ({sponsor.proxy.role})
-                        </span>
-                      </div>
-                    )}
+                    {/* Meta row */}
+                    <div className="space-y-1 mb-3 text-xs text-gray-500">
+                      {sponsor.proxy && (
+                        <div className="flex items-center gap-1.5">
+                          <Link2 size={12} className="flex-shrink-0 text-purple-400" />
+                          <span className="truncate text-purple-700">
+                            via {sponsor.proxy.fullName} · {sponsor.proxy.role}
+                          </span>
+                        </div>
+                      )}
+                      {sponsor.sponsorships.length > 0 && (
+                        <div className="flex items-center gap-1.5 text-green-600">
+                          <Heart size={12} className="flex-shrink-0" />
+                          <span className="truncate">
+                            {sponsor.sponsorships.slice(0, 2).map((s, i) => (
+                              <span key={i}>{i > 0 ? ", " : ""}{s.child.firstName} {s.child.lastName}</span>
+                            ))}
+                            {sponsor.sponsorships.length > 2 && ` +${sponsor.sponsorships.length - 2}`}
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
-                    <div className="flex space-x-2">
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-2 border-t border-gray-100">
                       <button
                         onClick={() => onViewSponsor(sponsor.id)}
-                        className="flex items-center cursor-pointer space-x-1
-                               px-3 py-1.5 text-xs
-                               bg-blue-100 hover:bg-blue-200
-                               text-blue-700 hover:text-blue-800
-                               font-medium
-                               rounded-md
-                               transition-colors duration-200"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors"
                       >
+                        <Eye size={13} />
                         View
                       </button>
                       <button
                         onClick={() =>
                           handleDeleteSponsor(sponsor.id, sponsor.fullName)
                         }
-                        className="px-3 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 cursor:pointer"
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors"
                         title="Delete sponsor"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
