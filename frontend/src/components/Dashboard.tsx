@@ -1,21 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   TrendingUp,
   Users,
   Heart,
   GraduationCap,
-  Plus,
-  UserPlus,
   BarChart3,
   Calendar,
   MapPin,
   Eye,
-  Target,
-  Award,
   Activity,
   Globe,
   UserCheck,
+  Award,
 } from "lucide-react";
 // Note: Using custom chart implementation since recharts is not available
 import { formatDateTimeWithRelative } from "../utils/dateUtils";
@@ -120,17 +117,24 @@ export const Dashboard: React.FC = () => {
     if (!data?.trends.monthly) return [];
 
     // Get the last N months based on selection
-    const filteredData = data.trends.monthly.slice(-chartTimeSpan);
-
-    return filteredData.map((item) => ({
-      ...item,
-      // Add a shorter month label for better chart display
-      shortMonth: item.month.split(" ")[0], // Just "Jan", "Feb", etc.
-    }));
+    return data.trends.monthly
+      .slice(-chartTimeSpan)
+      .map((item) => ({
+        ...item,
+        shortMonth: item.month.split(" ")[0],
+      }));
   };
 
   // Fixed Custom Chart Component - Bar Chart Only
   const CustomChart = ({ data }: { data: any[] }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+      }
+    }, [data]);
+
     if (!data || data.length === 0) {
       return (
         <div className="bg-white rounded-xl p-4 border border-blue-200">
@@ -159,7 +163,7 @@ export const Dashboard: React.FC = () => {
 
     return (
       <div className="bg-white rounded-xl p-4 border border-blue-200">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" ref={scrollRef}>
           <div className="h-72 flex items-end justify-between space-x-1 px-2 py-2" style={{ minWidth: `${data.length * 56}px` }}>
             {data.map((item, index) => {
               const heightChildren = Math.max(
@@ -391,7 +395,7 @@ export const Dashboard: React.FC = () => {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => setActiveTab(tab.id as "overview" | "demographics" | "schools" | "activity")}
                   className={`flex items-center space-x-2 px-4 py-2 sm:px-6 sm:py-3 rounded-2xl text-sm font-medium transition-all duration-200 ${
                     activeTab === tab.id
                       ? "bg-blue-600 text-white shadow-lg transform scale-105"
@@ -943,95 +947,6 @@ export const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Quick Actions */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
-          <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-2 gap-3 sm:gap-6 max-w-lg mx-auto">
-            <Link
-              to="/register-child"
-              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 sm:p-6 rounded-2xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3">
-                <Plus size={22} className="mb-1 sm:mb-0" />
-                <div>
-                  <div className="font-bold text-sm sm:text-base">Add Child</div>
-                  <div className="text-xs sm:text-sm opacity-90">Register new child</div>
-                </div>
-              </div>
-            </Link>
-
-            <Link
-              to="/register-sponsor"
-              className="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 sm:p-6 rounded-2xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3">
-                <UserPlus size={22} className="mb-1 sm:mb-0" />
-                <div>
-                  <div className="font-bold text-sm sm:text-base">Add Sponsor</div>
-                  <div className="text-xs sm:text-sm opacity-90">Register new sponsor</div>
-                </div>
-              </div>
-            </Link>
-          </div>
-        </div>
-
-        {/* Insights & Alerts */}
-        {data.insights && data.insights.length > 0 && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
-            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-6 flex items-center">
-              <Target className="mr-3" size={22} />
-              Key Insights & Alerts
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {data.insights.map((insight, index) => {
-                const bgColor =
-                  insight.type === "warning"
-                    ? "from-yellow-50 to-orange-50 border-yellow-200"
-                    : insight.type === "info"
-                    ? "from-blue-50 to-indigo-50 border-blue-200"
-                    : "from-green-50 to-emerald-50 border-green-200";
-
-                const iconColor =
-                  insight.type === "warning"
-                    ? "text-yellow-600"
-                    : insight.type === "info"
-                    ? "text-blue-600"
-                    : "text-green-600";
-
-                const Icon =
-                  insight.type === "warning"
-                    ? Target
-                    : insight.type === "info"
-                    ? Eye
-                    : Award;
-
-                return (
-                  <div
-                    key={index}
-                    className={`bg-gradient-to-r ${bgColor} rounded-2xl p-6 border`}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <Icon className={iconColor} size={24} />
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-900 mb-2">
-                          {insight.title}
-                        </h3>
-                        <p className="text-sm text-gray-700 mb-3">
-                          {insight.message}
-                        </p>
-                        <div className="text-2xl font-bold text-gray-900">
-                          {insight.value.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

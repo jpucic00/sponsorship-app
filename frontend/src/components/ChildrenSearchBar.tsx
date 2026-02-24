@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Search, Plus } from "lucide-react";
 
 interface ChildrenSearchBarProps {
@@ -41,13 +42,13 @@ export const ChildrenSearchBar: React.FC<ChildrenSearchBarProps> = ({
       </div>
 
       {/* Add Button */}
-      <button
-        onClick={() => (window.location.href = "/register-child")}
+      <Link
+        to="/register-child"
         className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition-colors shadow-sm flex-shrink-0"
       >
         <Plus size={16} />
         <span className="hidden sm:inline whitespace-nowrap">Add Child</span>
-      </button>
+      </Link>
     </div>
   );
 };

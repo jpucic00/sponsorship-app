@@ -110,23 +110,18 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
     async (page: number = 1, resetPage: boolean = false) => {
       setLoading(true);
       try {
-        console.log("🔄 Fetching sponsors with search:", debouncedSearchTerm);
-
-        // Build query parameters
         const params = new URLSearchParams({
           page: resetPage ? "1" : page.toString(),
           limit: "20",
-          search: debouncedSearchTerm, // This matches backend expectation
+          search: debouncedSearchTerm,
         });
 
         if (filterProxy !== "all") {
-          params.append("proxyId", filterProxy); // Fixed: use proxyId not proxy
+          params.append("proxyId", filterProxy);
         }
         if (filterSponsorship !== "all") {
-          params.append("hasSponsorship", filterSponsorship); // Fixed: use hasSponsorship
+          params.append("hasSponsorship", filterSponsorship);
         }
-
-        console.log("📤 Request URL:", `/api/sponsors?${params.toString()}`);
 
         const [sponsorsRes, proxiesRes] = await Promise.all([
           fetch(`/api/sponsors?${params.toString()}`),
@@ -135,17 +130,11 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
 
         if (!sponsorsRes.ok) {
           const errorText = await sponsorsRes.text();
-          console.error("❌ API Error:", sponsorsRes.status, errorText);
           throw new Error(`API Error: ${sponsorsRes.status} - ${errorText}`);
         }
 
         const sponsorsData = await sponsorsRes.json();
         const proxiesData = await proxiesRes.json();
-
-        console.log("✅ Data received:", {
-          sponsors: sponsorsData.data?.length || 0,
-          total: sponsorsData.pagination?.totalCount || 0,
-        });
 
         setSponsors(sponsorsData.data || []);
         setPagination(
@@ -162,7 +151,6 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
         );
         setProxies(Array.isArray(proxiesData) ? proxiesData : []);
       } catch (error) {
-        console.error("❌ Error fetching sponsors:", error);
         // Don't clear sponsors on error to avoid UI flashing
         if (sponsors.length === 0) {
           setSponsors([]);
@@ -185,7 +173,6 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
       // Don't refetch while debouncing
       return;
     }
-    console.log("🔄 Filters changed, refetching...");
     fetchData(1, true);
   }, [debouncedSearchTerm, filterProxy, filterSponsorship, fetchData]);
 
@@ -224,8 +211,6 @@ export const SponsorsList: React.FC<SponsorsListProps> = ({
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to delete sponsor");
       }
-
-      console.log("✅ Sponsor deleted successfully");
 
       // Show success modal
       setModalData({
