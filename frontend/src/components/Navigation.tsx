@@ -6,7 +6,6 @@ import {
   Heart,
   Plus,
   UserPlus,
-  FileUp,
   Menu,
   X,
   LogOut,
@@ -31,7 +30,6 @@ export const Navigation: React.FC = () => {
     { path: "/sponsors", label: "Sponsors", icon: Heart },
     { path: "/register-child", label: "Add Child", icon: Plus },
     { path: "/register-sponsor", label: "Add Sponsor", icon: UserPlus },
-    { path: "/import", label: "Import Excel", icon: FileUp },
   ];
 
   return (
@@ -98,7 +96,8 @@ export const Navigation: React.FC = () => {
             <div className="lg:hidden">
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="p-2 rounded-lg text-blue-100 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                className="p-3 rounded-xl text-blue-100 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                aria-label="Toggle menu"
               >
                 {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
@@ -106,10 +105,32 @@ export const Navigation: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation — full-screen overlay */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden absolute top-full left-0 right-0 bg-blue-700/95 backdrop-blur-sm border-t border-blue-500/50 shadow-2xl z-50">
-            <div className="px-4 py-3 space-y-2">
+          <div className="lg:hidden fixed inset-0 bg-gradient-to-b from-blue-700 to-blue-900 z-50 flex flex-col">
+            {/* Header row */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <Link
+                to="/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center space-x-3"
+              >
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                  <LogoIcon className="text-white" size={20} />
+                </div>
+                <span className="text-white font-bold text-lg">Children Sponsorship</span>
+              </Link>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-2 rounded-xl text-blue-100 hover:text-white hover:bg-white/10 transition-colors"
+                aria-label="Close menu"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Nav items */}
+            <div className="flex-1 overflow-y-auto px-4 py-6 space-y-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
@@ -119,34 +140,34 @@ export const Navigation: React.FC = () => {
                     key={item.path}
                     to={item.path}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    className={`flex items-center space-x-4 px-5 py-4 rounded-2xl font-medium transition-all duration-200 ${
                       isActive
-                        ? "bg-white/20 text-white shadow-lg"
+                        ? "bg-white/20 text-white"
                         : "text-blue-100 hover:bg-white/10 hover:text-white"
                     }`}
                   >
-                    <Icon size={20} />
-                    <span>{item.label}</span>
+                    <Icon size={24} />
+                    <span className="text-lg">{item.label}</span>
                   </Link>
                 );
               })}
+            </div>
 
-              {/* Mobile User Info and Logout */}
-              <div className="pt-2 mt-2 border-t border-white/20">
-                <div className="px-4 py-2 text-sm text-blue-100">
-                  {user?.fullName || user?.username}
-                </div>
-                <button
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    handleLogout();
-                  }}
-                  className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-blue-100 hover:bg-white/10 hover:text-white transition-all duration-200"
-                >
-                  <LogOut size={20} />
-                  <span>Logout</span>
-                </button>
+            {/* User info + logout pinned to bottom */}
+            <div className="px-4 py-6 border-t border-white/10 space-y-2">
+              <div className="px-5 py-2 text-sm text-blue-200">
+                Signed in as <span className="text-white font-medium">{user?.fullName || user?.username}</span>
               </div>
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="w-full flex items-center space-x-4 px-5 py-4 rounded-2xl font-medium text-blue-100 hover:bg-white/10 hover:text-white transition-all duration-200"
+              >
+                <LogOut size={24} />
+                <span className="text-lg">Logout</span>
+              </button>
             </div>
           </div>
         )}
