@@ -19,36 +19,34 @@ export const ChildrenSearchBar: React.FC<ChildrenSearchBarProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-between space-x-4">
-      {/* Search Bar with Search Button */}
-      <div className="flex-1 relative max-w-2xl">
-        <Search
-          className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
-          size={24}
-        />
+    <div className="flex items-center gap-2">
+      {/* Search Bar */}
+      <div className="flex-1 flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2.5 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
+        <Search size={16} className="text-gray-400 flex-shrink-0" />
         <input
           type="text"
           placeholder="Search by name or school..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onKeyPress={handleKeyPress}
-          className="w-full pl-12 pr-24 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white/70 text-lg"
+          className="flex-1 text-sm outline-none bg-transparent text-gray-900 placeholder-gray-400 min-w-0"
         />
         <button
           onClick={onSearch}
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
+          aria-label="Search"
+          className="flex-shrink-0 p-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          Search
+          <Search size={14} />
         </button>
       </div>
 
       {/* Add Button */}
       <button
         onClick={() => (window.location.href = "/register-child")}
-        className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 transform hover:scale-105 shadow-lg whitespace-nowrap"
+        className="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition-colors shadow-sm flex-shrink-0"
       >
-        <Plus size={20} />
-        <span>Add New Child</span>
+        <Plus size={16} />
+        <span className="hidden sm:inline whitespace-nowrap">Add Child</span>
       </button>
     </div>
   );

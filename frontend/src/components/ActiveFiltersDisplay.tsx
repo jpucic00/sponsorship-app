@@ -130,9 +130,9 @@ export const ActiveFiltersDisplay: React.FC<ActiveFiltersDisplayProps> = ({
 
         {/* School */}
         {filterSchool !== "all" && (
-          <div className="inline-flex items-center space-x-1 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
-            <SchoolIcon size={14} />
-            <span className="max-w-xs truncate">
+          <div className="inline-flex items-center space-x-1 px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm max-w-[180px] sm:max-w-xs">
+            <SchoolIcon size={14} className="flex-shrink-0" />
+            <span className="truncate">
               {getSchoolName(filterSchool)}
             </span>
           </div>
@@ -140,9 +140,9 @@ export const ActiveFiltersDisplay: React.FC<ActiveFiltersDisplayProps> = ({
 
         {/* Sponsor */}
         {filterSponsor !== "all" && (
-          <div className="inline-flex items-center space-x-1 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm">
-            <UserCheck size={14} />
-            <span className="max-w-xs truncate">
+          <div className="inline-flex items-center space-x-1 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm max-w-[180px] sm:max-w-xs">
+            <UserCheck size={14} className="flex-shrink-0" />
+            <span className="truncate">
               {filterSponsor === "none"
                 ? "No Sponsor"
                 : getSponsorName(filterSponsor)}
@@ -152,9 +152,9 @@ export const ActiveFiltersDisplay: React.FC<ActiveFiltersDisplayProps> = ({
 
         {/* Proxy */}
         {filterProxy !== "all" && (
-          <div className="inline-flex items-center space-x-1 px-3 py-1 bg-pink-100 text-pink-800 rounded-full text-sm">
-            <Link2 size={14} />
-            <span className="max-w-xs truncate">
+          <div className="inline-flex items-center space-x-1 px-3 py-1 bg-pink-100 text-pink-800 rounded-full text-sm max-w-[180px] sm:max-w-xs">
+            <Link2 size={14} className="flex-shrink-0" />
+            <span className="truncate">
               {getProxyName(filterProxy)}
             </span>
           </div>

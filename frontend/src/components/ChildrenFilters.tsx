@@ -145,31 +145,29 @@ export const ChildrenFilters: React.FC<ChildrenFiltersProps> = ({
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row items-center justify-between space-y-4 lg:space-y-0 lg:space-x-6">
+    <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 lg:gap-0 lg:space-x-6">
       {/* Filter Toggle */}
-      <div className="flex items-center space-x-4">
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
-            showFilters || hasActiveFilters
-              ? "bg-blue-600 text-white shadow-lg"
-              : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
-          }`}
-        >
-          <Filter size={20} />
-          <span>Filters</span>
-          {hasActiveFilters && (
-            <span className="bg-white/20 text-xs px-2 py-1 rounded-full">
-              {getActiveFilterCount()}
-            </span>
-          )}
-        </button>
-      </div>
+      <button
+        onClick={() => setShowFilters(!showFilters)}
+        className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-200 text-sm ${
+          showFilters || hasActiveFilters
+            ? "bg-blue-600 text-white shadow-lg"
+            : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+        }`}
+      >
+        <Filter size={16} />
+        <span>Filters</span>
+        {hasActiveFilters && (
+          <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${showFilters || hasActiveFilters ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700"}`}>
+            {getActiveFilterCount()}
+          </span>
+        )}
+      </button>
 
       {/* Filters Panel */}
       {showFilters && (
         <div className="w-full mt-6 pt-6 border-t border-gray-200 relative">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 relative overflow-visible">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 relative overflow-visible">
             {/* Sponsorship Status Filter */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-gray-700">

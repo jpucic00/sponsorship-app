@@ -1,16 +1,14 @@
 import React from "react";
 import {
   GraduationCap,
-  Calendar,
   Heart,
   Camera,
-  Clock,
   Eye,
   Archive,
   RotateCcw,
   Trash2,
 } from "lucide-react";
-import { formatDateTime, formatDateTimeWithRelative } from "../utils/dateUtils";
+import { formatDateTimeWithRelative } from "../utils/dateUtils";
 
 interface Child {
   id: number;
@@ -80,220 +78,130 @@ export const ChildrenCardsMobile: React.FC<ChildrenCardsMobileProps> = ({
   };
 
   return (
-    <div className="lg:hidden space-y-4 p-6">
+    <div className="lg:hidden space-y-3 p-3 sm:p-4">
       {children.map((child) => (
         <div
           key={child.id}
-          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6"
+          className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4"
         >
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                {hasImage(child) ? (
-                  <img
-                    src={getImageSrc(child)}
-                    alt={`${child.firstName} ${child.lastName}`}
-                    className="w-16 h-16 rounded-xl object-cover border-2 border-white shadow-md"
-                    onError={(e) => {
-                      // Fallback to initials on error
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = "none";
-                      const fallback = target.nextElementSibling as HTMLElement;
-                      if (fallback) {
-                        fallback.style.display = "flex";
-                      }
-                    }}
-                  />
-                ) : null}
-                <div
-                  className={`w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-lg ${
-                    hasImage(child) ? "hidden" : "flex"
-                  }`}
-                >
-                  {child.firstName[0]}
-                  {child.lastName[0]}
+          {/* Header row: avatar + name + badge */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className="relative flex-shrink-0">
+              {hasImage(child) ? (
+                <img
+                  src={getImageSrc(child)}
+                  alt={`${child.firstName} ${child.lastName}`}
+                  className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                    const fallback = target.nextElementSibling as HTMLElement;
+                    if (fallback) fallback.style.display = "flex";
+                  }}
+                />
+              ) : null}
+              <div
+                className={`w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-base ${
+                  hasImage(child) ? "hidden" : "flex"
+                }`}
+              >
+                {child.firstName[0]}{child.lastName[0]}
+              </div>
+              {hasImage(child) && (
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                  <Camera size={8} className="text-white" />
                 </div>
-                {hasImage(child) && (
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                    <Camera size={10} className="text-white" />
-                  </div>
-                )}
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  {child.firstName} {child.lastName}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {calculateAge(child.dateOfBirth)} years • {child.gender} •{" "}
-                  {child.class}
-                </p>
-                <p className="text-xs text-gray-500">ID: #{child.id}</p>
-              </div>
+              )}
             </div>
+
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-gray-900 truncate">
+                {child.firstName} {child.lastName}
+              </h3>
+              <p className="text-xs text-gray-500">
+                {calculateAge(child.dateOfBirth)} yrs · {child.gender} · Class {child.class}
+              </p>
+            </div>
+
             <span
-              className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${
+              className={`flex-shrink-0 px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${
                 child.isSponsored
-                  ? "bg-green-100 text-green-800"
-                  : "bg-yellow-100 text-yellow-800"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-amber-100 text-amber-700"
               }`}
             >
-              {child.isSponsored ? "✅ Sponsored" : "⏳ Needs Sponsor"}
+              {child.isSponsored ? "Sponsored" : "Needs Sponsor"}
             </span>
           </div>
 
-          <div className="space-y-2 mb-4">
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <GraduationCap size={16} />
-              <span>
-                {child.school.name}, {child.school.location}
-              </span>
+          {/* Meta row: school + registered */}
+          <div className="space-y-1 mb-3 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <GraduationCap size={13} className="flex-shrink-0 text-gray-400" />
+              <span className="truncate">{child.school.name}, {child.school.location}</span>
             </div>
-
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Calendar size={16} />
-              <div>
-                <span>Registered: </span>
-                <span className="font-medium">
-                  {formatDateTime(child.dateEnteredRegister)}
-                </span>
-                <div className="text-xs text-gray-500">
-                  {
-                    formatDateTimeWithRelative(child.dateEnteredRegister)
-                      .relative
-                  }
-                </div>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-gray-400">Registered</span>
+              <span>{formatDateTimeWithRelative(child.dateEnteredRegister).relative}</span>
             </div>
-
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Clock size={16} />
-              <div>
-                <span>Updated: </span>
-                <span className="font-medium">
-                  {formatDateTime(child.lastProfileUpdate)}
-                </span>
-                <div className="text-xs text-gray-500">
-                  {formatDateTimeWithRelative(child.lastProfileUpdate).relative}
-                </div>
-              </div>
-            </div>
-
             {child.isSponsored && child.sponsorships.length > 0 && (
-              <div className="space-y-1">
-                {child.sponsorships.slice(0, 2).map((sponsorship, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center space-x-2 text-sm text-green-600"
-                  >
-                    <Heart size={16} />
-                    <span>
-                      Sponsored by {sponsorship.sponsor.fullName}
-                      {sponsorship.sponsor.proxy && (
-                        <span className="text-purple-600">
-                          {" "}
-                          via {sponsorship.sponsor.proxy.fullName}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                ))}
-                {child.sponsorships.length > 2 && (
-                  <div className="text-xs text-gray-500 ml-6">
-                    +{child.sponsorships.length - 2} more sponsors
-                  </div>
-                )}
+              <div className="flex items-center gap-1.5 text-green-600">
+                <Heart size={13} className="flex-shrink-0" />
+                <span className="truncate">
+                  {child.sponsorships[0].sponsor.fullName}
+                  {child.sponsorships.length > 1 && ` +${child.sponsorships.length - 1}`}
+                </span>
               </div>
             )}
           </div>
 
-          {/* Actions - Simple Buttons */}
-          <div className="flex space-x-2 flex-wrap gap-2">
+          {/* Actions */}
+          <div className="flex gap-2 pt-2 border-t border-gray-100">
             <button
               onClick={() => onViewChild(child.id)}
-              className="flex-1 flex items-center justify-center space-x-1
-                         px-3 py-2 text-sm
-                         bg-blue-100 hover:bg-blue-200
-                         text-blue-700 hover:text-blue-800
-                         font-medium
-                         rounded-md
-                         transition-colors duration-200"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition-colors"
             >
-              <Eye size={14} />
-              <span>View</span>
+              <Eye size={13} />
+              View
             </button>
 
             {!isArchiveView && !child.isSponsored && (
               <button
-                className="flex-1 flex items-center justify-center space-x-1
-                           px-3 py-2 text-sm
-                           bg-rose-100 hover:bg-rose-200
-                           text-rose-700 hover:text-rose-800
-                           font-medium
-                           rounded-md
-                           transition-colors duration-200"
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition-colors"
               >
-                <Heart size={14} />
-                <span>Find Sponsor</span>
+                <Heart size={13} />
+                Find Sponsor
               </button>
             )}
 
             {!isArchiveView && onArchive && (
               <button
-                onClick={() =>
-                  onArchive(child.id, `${child.firstName} ${child.lastName}`)
-                }
-                className="flex-1 flex items-center justify-center space-x-1
-                           px-3 py-2 text-sm
-                           bg-orange-100 hover:bg-orange-200
-                           text-orange-700 hover:text-orange-800
-                           font-medium
-                           rounded-md
-                           transition-colors duration-200"
-                title="Archive child"
+                onClick={() => onArchive(child.id, `${child.firstName} ${child.lastName}`)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium bg-orange-50 hover:bg-orange-100 text-orange-700 rounded-lg transition-colors"
+                title="Archive"
               >
-                <Archive size={14} />
-                <span>Archive</span>
+                <Archive size={13} />
+                Archive
               </button>
             )}
 
             {isArchiveView && onRestore && (
               <button
-                onClick={() =>
-                  onRestore(child.id, `${child.firstName} ${child.lastName}`)
-                }
-                className="flex-1 flex items-center justify-center space-x-1
-                           px-3 py-2 text-sm
-                           bg-green-100 hover:bg-green-200
-                           text-green-700 hover:text-green-800
-                           font-medium
-                           rounded-md
-                           transition-colors duration-200"
-                title="Restore child"
+                onClick={() => onRestore(child.id, `${child.firstName} ${child.lastName}`)}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium bg-green-50 hover:bg-green-100 text-green-700 rounded-lg transition-colors"
               >
-                <RotateCcw size={14} />
-                <span>Restore</span>
+                <RotateCcw size={13} />
+                Restore
               </button>
             )}
 
             {isArchiveView && onPermanentDelete && (
               <button
-                onClick={() =>
-                  onPermanentDelete(
-                    child.id,
-                    `${child.firstName} ${child.lastName}`
-                  )
-                }
-                className="flex-1 flex items-center justify-center space-x-1
-                           px-3 py-2 text-sm
-                           bg-red-100 hover:bg-red-200
-                           text-red-700 hover:text-red-800
-                           font-medium
-                           rounded-md
-                           transition-colors duration-200"
-                title="Permanently delete"
+                onClick={() => onPermanentDelete(child.id, `${child.firstName} ${child.lastName}`)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition-colors"
               >
-                <Trash2 size={14} />
-                <span>Delete</span>
+                <Trash2 size={13} />
+                Delete
               </button>
             )}
           </div>

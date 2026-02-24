@@ -435,11 +435,38 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
     );
   }
 
+  const TabNavigation = () => (
+    <div className="flex justify-center gap-2">
+      <button
+        onClick={() => handleTabChange("active")}
+        className={`flex items-center space-x-2 px-5 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+          activeTab === "active"
+            ? "bg-blue-600 text-white shadow-md"
+            : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-blue-300"
+        }`}
+      >
+        <Users size={18} />
+        <span>Children</span>
+      </button>
+      <button
+        onClick={() => handleTabChange("archived")}
+        className={`flex items-center space-x-2 px-5 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+          activeTab === "archived"
+            ? "bg-gray-600 text-white shadow-md"
+            : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+        }`}
+      >
+        <Archive size={18} />
+        <span>Archive</span>
+      </button>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
-      <div className="max-w-7xl mx-auto px-4 space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-4 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 space-y-4 sm:space-y-8">
         {/* Search and Filters */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
           <div className="space-y-6">
             {/* Search Bar */}
             <ChildrenSearchBar
@@ -495,30 +522,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
         {children.length > 0 || (loading && pagination.totalCount > 0) ? (
           <div className="space-y-6">
             {/* Tab Navigation */}
-            <div className="flex justify-center gap-2">
-              <button
-                onClick={() => handleTabChange("active")}
-                className={`flex items-center space-x-2 px-5 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  activeTab === "active"
-                    ? "bg-blue-600 text-white shadow-md"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-blue-300"
-                }`}
-              >
-                <Users size={18} />
-                <span>Children</span>
-              </button>
-              <button
-                onClick={() => handleTabChange("archived")}
-                className={`flex items-center space-x-2 px-5 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  activeTab === "archived"
-                    ? "bg-gray-600 text-white shadow-md"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                }`}
-              >
-                <Archive size={18} />
-                <span>Archive</span>
-              </button>
-            </div>
+            <TabNavigation />
 
             <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 overflow-hidden relative">
               {/* Loading Overlay - Only shows when refreshing data */}
@@ -573,30 +577,7 @@ export const ChildrenList: React.FC<ChildrenListProps> = ({ onViewChild }) => {
           /* Empty State - Only show when not loading */
           <div className="space-y-6">
             {/* Tab Navigation */}
-            <div className="flex justify-center gap-2">
-              <button
-                onClick={() => handleTabChange("active")}
-                className={`flex items-center space-x-2 px-5 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  activeTab === "active"
-                    ? "bg-blue-600 text-white shadow-md"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-blue-300"
-                }`}
-              >
-                <Users size={18} />
-                <span>Children</span>
-              </button>
-              <button
-                onClick={() => handleTabChange("archived")}
-                className={`flex items-center space-x-2 px-5 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  activeTab === "archived"
-                    ? "bg-gray-600 text-white shadow-md"
-                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                }`}
-              >
-                <Archive size={18} />
-                <span>Archive</span>
-              </button>
-            </div>
+            <TabNavigation />
 
             <EmptyState
               hasActiveFilters={hasActiveFilters}
