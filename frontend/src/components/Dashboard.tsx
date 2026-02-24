@@ -6,7 +6,6 @@ import {
   Heart,
   GraduationCap,
   Plus,
-  FileUp,
   UserPlus,
   BarChart3,
   Calendar,
@@ -135,7 +134,7 @@ export const Dashboard: React.FC = () => {
     if (!data || data.length === 0) {
       return (
         <div className="bg-white rounded-xl p-4 border border-blue-200">
-          <div className="h-96 flex items-center justify-center">
+          <div className="h-48 sm:h-96 flex items-center justify-center">
             <div className="text-center">
               <div className="text-gray-400 mb-2">
                 <BarChart3 size={48} />
@@ -160,83 +159,85 @@ export const Dashboard: React.FC = () => {
 
     return (
       <div className="bg-white rounded-xl p-4 border border-blue-200">
-        <div className="h-96 flex items-end justify-between space-x-2 px-4 py-2">
-          {data.map((item, index) => {
-            const heightChildren = Math.max(
-              ((item.newChildren || 0) / safeMaxValue) * 320,
-              4
-            );
-            const heightSponsors = Math.max(
-              ((item.newSponsors || 0) / safeMaxValue) * 320,
-              4
-            );
-            const heightSponsorships = Math.max(
-              ((item.newSponsorships || 0) / safeMaxValue) * 320,
-              4
-            );
+        <div className="overflow-x-auto">
+          <div className="h-72 flex items-end justify-between space-x-1 px-2 py-2" style={{ minWidth: `${data.length * 56}px` }}>
+            {data.map((item, index) => {
+              const heightChildren = Math.max(
+                ((item.newChildren || 0) / safeMaxValue) * 220,
+                4
+              );
+              const heightSponsors = Math.max(
+                ((item.newSponsors || 0) / safeMaxValue) * 220,
+                4
+              );
+              const heightSponsorships = Math.max(
+                ((item.newSponsorships || 0) / safeMaxValue) * 220,
+                4
+              );
 
-            return (
-              <div
-                key={index}
-                className="flex-1 flex flex-col items-center space-y-2"
-              >
-                <div className="flex items-end space-x-1 h-80 w-full justify-center">
-                  <div
-                    className="bg-blue-500 rounded-t transition-all duration-500 hover:bg-blue-600 cursor-pointer group relative"
-                    style={{ height: `${heightChildren}px`, width: "20px" }}
-                    title={`New Children: ${item.newChildren || 0}`}
-                  >
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      Children: {item.newChildren || 0}
+              return (
+                <div
+                  key={index}
+                  className="flex-1 flex flex-col items-center space-y-2 min-w-[44px]"
+                >
+                  <div className="flex items-end space-x-0.5 h-56 w-full justify-center">
+                    <div
+                      className="bg-blue-500 rounded-t transition-all duration-500 hover:bg-blue-600 cursor-pointer group relative"
+                      style={{ height: `${heightChildren}px`, width: "14px" }}
+                      title={`New Children: ${item.newChildren || 0}`}
+                    >
+                      <div className="absolute bottom-full mb-1 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                        Children: {item.newChildren || 0}
+                      </div>
+                    </div>
+                    <div
+                      className="bg-green-500 rounded-t transition-all duration-500 hover:bg-green-600 cursor-pointer group relative"
+                      style={{ height: `${heightSponsors}px`, width: "14px" }}
+                      title={`New Sponsors: ${item.newSponsors || 0}`}
+                    >
+                      <div className="absolute bottom-full mb-1 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                        Sponsors: {item.newSponsors || 0}
+                      </div>
+                    </div>
+                    <div
+                      className="bg-purple-500 rounded-t transition-all duration-500 hover:bg-purple-600 cursor-pointer group relative"
+                      style={{
+                        height: `${heightSponsorships}px`,
+                        width: "14px",
+                      }}
+                      title={`New Sponsorships: ${item.newSponsorships || 0}`}
+                    >
+                      <div className="absolute bottom-full mb-1 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                        Sponsorships: {item.newSponsorships || 0}
+                      </div>
                     </div>
                   </div>
-                  <div
-                    className="bg-green-500 rounded-t transition-all duration-500 hover:bg-green-600 cursor-pointer group relative"
-                    style={{ height: `${heightSponsors}px`, width: "20px" }}
-                    title={`New Sponsors: ${item.newSponsors || 0}`}
-                  >
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      Sponsors: {item.newSponsors || 0}
-                    </div>
-                  </div>
-                  <div
-                    className="bg-purple-500 rounded-t transition-all duration-500 hover:bg-purple-600 cursor-pointer group relative"
-                    style={{
-                      height: `${heightSponsorships}px`,
-                      width: "20px",
-                    }}
-                    title={`New Sponsorships: ${item.newSponsorships || 0}`}
-                  >
-                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      Sponsorships: {item.newSponsorships || 0}
-                    </div>
+                  <div className="text-xs font-medium text-gray-600 text-center">
+                    {item.shortMonth}
                   </div>
                 </div>
-                <div className="text-xs font-medium text-gray-600 text-center">
-                  {item.shortMonth}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
         {/* Legend */}
-        <div className="flex justify-center space-x-6 mt-4 pt-4 border-t border-gray-200">
+        <div className="flex flex-wrap justify-center gap-4 mt-4 pt-4 border-t border-gray-200">
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-blue-500 rounded"></div>
-            <span className="text-sm font-medium text-gray-700">
+            <div className="w-3 h-3 bg-blue-500 rounded"></div>
+            <span className="text-xs sm:text-sm font-medium text-gray-700">
               New Children
             </span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-green-500 rounded"></div>
-            <span className="text-sm font-medium text-gray-700">
+            <div className="w-3 h-3 bg-green-500 rounded"></div>
+            <span className="text-xs sm:text-sm font-medium text-gray-700">
               New Sponsors
             </span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-purple-500 rounded"></div>
-            <span className="text-sm font-medium text-gray-700">
+            <div className="w-3 h-3 bg-purple-500 rounded"></div>
+            <span className="text-xs sm:text-sm font-medium text-gray-700">
               New Sponsorships
             </span>
           </div>
@@ -280,96 +281,96 @@ export const Dashboard: React.FC = () => {
   const filteredMonthlyData = getFilteredMonthlyData();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8">
-      <div className="max-w-7xl mx-auto px-4 space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-4 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 space-y-4 sm:space-y-8">
         {/* Main Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8 transform hover:scale-105 transition-all duration-300">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Users className="text-white" size={28} />
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-6 transform hover:scale-105 transition-all duration-300">
+            <div className="flex items-center space-x-3">
+              <div className="w-11 h-11 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <Users className="text-white" size={20} />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide leading-tight">
                   Total Children
                 </p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">
                   {data.overview.totalChildren.toLocaleString()}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8 transform hover:scale-105 transition-all duration-300">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Heart className="text-white" size={28} />
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-6 transform hover:scale-105 transition-all duration-300">
+            <div className="flex items-center space-x-3">
+              <div className="w-11 h-11 sm:w-14 sm:h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <Heart className="text-white" size={20} />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide leading-tight">
                   Sponsored
                 </p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">
                   {data.overview.sponsoredChildren.toLocaleString()}
                 </p>
-                <p className="text-xs text-green-600 mt-1">
-                  {data.overview.sponsorshipRate}% success rate
+                <p className="text-xs text-green-600 mt-0.5">
+                  {data.overview.sponsorshipRate}% rate
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8 transform hover:scale-105 transition-all duration-300">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <UserCheck className="text-white" size={28} />
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-6 transform hover:scale-105 transition-all duration-300">
+            <div className="flex items-center space-x-3">
+              <div className="w-11 h-11 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <UserCheck className="text-white" size={20} />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide leading-tight">
                   Sponsors
                 </p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">
                   {data.overview.totalSponsors.toLocaleString()}
                 </p>
-                <p className="text-xs text-purple-600 mt-1">
-                  {data.overview.activeSponsorships} active sponsorships
+                <p className="text-xs text-purple-600 mt-0.5">
+                  {data.overview.activeSponsorships} active
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8 transform hover:scale-105 transition-all duration-300">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <GraduationCap className="text-white" size={28} />
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-6 transform hover:scale-105 transition-all duration-300">
+            <div className="flex items-center space-x-3">
+              <div className="w-11 h-11 sm:w-14 sm:h-14 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <GraduationCap className="text-white" size={20} />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide leading-tight">
                   Schools
                 </p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">
                   {data.overview.totalSchools}
                 </p>
-                <p className="text-xs text-indigo-600 mt-1">
-                  {data.schools.topPerforming} high-performing
+                <p className="text-xs text-indigo-600 mt-0.5">
+                  {data.schools.topPerforming} high-perf.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8 transform hover:scale-105 transition-all duration-300">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Globe className="text-white" size={28} />
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-6 transform hover:scale-105 transition-all duration-300 col-span-2 lg:col-span-1">
+            <div className="flex items-center space-x-3">
+              <div className="w-11 h-11 sm:w-14 sm:h-14 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0">
+                <Globe className="text-white" size={20} />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide leading-tight">
                   Need Sponsors
                 </p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900">
                   {data.overview.unsponsoredChildren.toLocaleString()}
                 </p>
-                <p className="text-xs text-orange-600 mt-1">
+                <p className="text-xs text-orange-600 mt-0.5">
                   Waiting for support
                 </p>
               </div>
@@ -391,13 +392,13 @@ export const Dashboard: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center space-x-2 px-6 py-3 rounded-2xl text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center space-x-2 px-4 py-2 sm:px-6 sm:py-3 rounded-2xl text-sm font-medium transition-all duration-200 ${
                     activeTab === tab.id
                       ? "bg-blue-600 text-white shadow-lg transform scale-105"
                       : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-blue-300"
                   }`}
                 >
-                  <Icon size={20} />
+                  <Icon size={18} />
                   <span>{tab.label}</span>
                 </button>
               );
@@ -409,20 +410,20 @@ export const Dashboard: React.FC = () => {
         {activeTab === "overview" && (
           <div className="space-y-8">
             {/* Sponsorship Progress */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
               <div className="flex items-center space-x-3 mb-6">
-                <TrendingUp className="text-green-600" size={28} />
-                <h2 className="text-3xl font-bold text-gray-900">
+                <TrendingUp className="text-green-600" size={24} />
+                <h2 className="text-xl sm:text-3xl font-bold text-gray-900">
                   Sponsorship Progress
                 </h2>
               </div>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-semibold text-gray-700">
+                  <span className="text-base sm:text-lg font-semibold text-gray-700">
                     Overall Sponsorship Rate
                   </span>
-                  <span className="text-2xl font-bold text-green-600">
+                  <span className="text-xl sm:text-2xl font-bold text-green-600">
                     {data.overview.sponsorshipRate}%
                   </span>
                 </div>
@@ -436,7 +437,7 @@ export const Dashboard: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4 mt-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">
+                    <div className="text-xl sm:text-2xl font-bold text-green-600">
                       {data.overview.sponsoredChildren}
                     </div>
                     <div className="text-sm text-gray-600">
@@ -444,7 +445,7 @@ export const Dashboard: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">
+                    <div className="text-xl sm:text-2xl font-bold text-orange-600">
                       {data.overview.unsponsoredChildren}
                     </div>
                     <div className="text-sm text-gray-600">
@@ -526,9 +527,9 @@ export const Dashboard: React.FC = () => {
 
             {/* Recent Activity */}
             {data.trends.recentActivity && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                  <Activity className="mr-3" size={24} />
+              <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
+                <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                  <Activity className="mr-3" size={22} />
                   Recent Activity
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -655,9 +656,9 @@ export const Dashboard: React.FC = () => {
         {/* Demographics Tab */}
         {activeTab === "demographics" && (
           <div className="space-y-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <Users className="mr-3" size={24} />
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
+              <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <Users className="mr-3" size={22} />
                 Demographics Overview
               </h2>
 
@@ -770,9 +771,9 @@ export const Dashboard: React.FC = () => {
         {/* Schools Tab */}
         {activeTab === "schools" && (
           <div className="space-y-8">
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <GraduationCap className="mr-3" size={24} />
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
+              <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <GraduationCap className="mr-3" size={22} />
                 Schools Performance
               </h2>
 
@@ -882,9 +883,9 @@ export const Dashboard: React.FC = () => {
         {activeTab === "activity" && (
           <div className="space-y-8">
             {/* Proxy/Middleman Network */}
-            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                <UserCheck className="mr-3" size={24} />
+            <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
+              <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <UserCheck className="mr-3" size={22} />
                 Proxy/Middleman Network
               </h2>
 
@@ -942,64 +943,45 @@ export const Dashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Quick Actions - PROPERLY CENTERED */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+        {/* Quick Actions */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
+          <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6 text-center">
             Quick Actions
           </h2>
-          <div className="flex justify-center">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl">
-              <Link
-                to="/children/add"
-                className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6 rounded-2xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                <div className="flex items-center space-x-3">
-                  <Plus size={24} />
-                  <div>
-                    <div className="font-bold">Add Child</div>
-                    <div className="text-sm opacity-90">Register new child</div>
-                  </div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 max-w-lg mx-auto">
+            <Link
+              to="/register-child"
+              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 sm:p-6 rounded-2xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3">
+                <Plus size={22} className="mb-1 sm:mb-0" />
+                <div>
+                  <div className="font-bold text-sm sm:text-base">Add Child</div>
+                  <div className="text-xs sm:text-sm opacity-90">Register new child</div>
                 </div>
-              </Link>
+              </div>
+            </Link>
 
-              <Link
-                to="/sponsors/add"
-                className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6 rounded-2xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                <div className="flex items-center space-x-3">
-                  <UserPlus size={24} />
-                  <div>
-                    <div className="font-bold">Add Sponsor</div>
-                    <div className="text-sm opacity-90">
-                      Register new sponsor
-                    </div>
-                  </div>
+            <Link
+              to="/register-sponsor"
+              className="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 sm:p-6 rounded-2xl hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3">
+                <UserPlus size={22} className="mb-1 sm:mb-0" />
+                <div>
+                  <div className="font-bold text-sm sm:text-base">Add Sponsor</div>
+                  <div className="text-xs sm:text-sm opacity-90">Register new sponsor</div>
                 </div>
-              </Link>
-
-              <Link
-                to="/children/import"
-                className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6 rounded-2xl hover:from-purple-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
-              >
-                <div className="flex items-center space-x-3">
-                  <FileUp size={24} />
-                  <div>
-                    <div className="font-bold">Import Data</div>
-                    <div className="text-sm opacity-90">
-                      Bulk import children
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            </div>
+              </div>
+            </Link>
           </div>
         </div>
 
         {/* Insights & Alerts */}
         {data.insights && data.insights.length > 0 && (
-          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-              <Target className="mr-3" size={24} />
+          <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-8">
+            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mb-6 flex items-center">
+              <Target className="mr-3" size={22} />
               Key Insights & Alerts
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
