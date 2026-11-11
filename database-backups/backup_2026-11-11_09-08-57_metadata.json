@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-11-11_09-08-57",
+  "iso_timestamp": "2026-11-11T09:08:57Z",
+  "source_database": "sponsorship-db",
+  "backup_files": ["backup_2026-11-11_09-08-57.sql.gz"],
+  "created_by": "github-actions",
+  "workflow_run": "42992699053",
+  "organization": "jpucic00"
+}
